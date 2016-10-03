@@ -41,7 +41,7 @@ public class Shape2DEditor : Editor {
 
 		_shape2D = (Shape2D)target;
 		_mesh = MeshFromShape(_shape2D, 1);
-		_material = new Material(Shader.Find("Diffuse"));
+		_material = new Material(Shader.Find("Unlit/Color NoCull"));
 
 		if (_previewRenderUtility == null) {
 			_previewRenderUtility = new PreviewRenderUtility();
