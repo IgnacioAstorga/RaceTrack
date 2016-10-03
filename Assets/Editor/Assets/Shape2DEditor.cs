@@ -3,9 +3,7 @@ using UnityEditor;
 
 [CustomEditor(typeof(Shape2D))]
 public class Shape2DEditor : Editor {
-
-	public float distance = 15;
-
+	
 	private Shape2D _shape2D;
 
 	private Mesh _mesh;
@@ -13,9 +11,10 @@ public class Shape2DEditor : Editor {
 	private PreviewRenderUtility _previewRenderUtility;
 
 	private Vector2 _drag = new Vector2(45, -25);
+	private float _distance = 15;
 
 	public override void OnPreviewGUI(Rect rectangle, GUIStyle background) {
-		_drag = Drag2D(_drag, rectangle);
+		_distance = Drag2D(ref _drag, _distance, rectangle);
 
 		if (Event.current.type == EventType.Repaint) {
 			_previewRenderUtility.BeginPreview(rectangle, background);
@@ -24,7 +23,7 @@ public class Shape2DEditor : Editor {
 
 			_previewRenderUtility.m_Camera.transform.position = Vector2.zero;
 			_previewRenderUtility.m_Camera.transform.rotation = Quaternion.Euler(new Vector3(-_drag.y, -_drag.x, 0));
-			_previewRenderUtility.m_Camera.transform.position = _previewRenderUtility.m_Camera.transform.forward * -distance;
+			_previewRenderUtility.m_Camera.transform.position = _previewRenderUtility.m_Camera.transform.forward * -_distance;
 			_previewRenderUtility.m_Camera.Render();
 
 			Texture resultRender = _previewRenderUtility.EndPreview();
@@ -46,7 +45,7 @@ public class Shape2DEditor : Editor {
 		if (_previewRenderUtility == null) {
 			_previewRenderUtility = new PreviewRenderUtility();
 
-			_previewRenderUtility.m_Camera.transform.position = new Vector3(0, 0, -distance);
+			_previewRenderUtility.m_Camera.transform.position = new Vector3(0, 0, -_distance);
 			_previewRenderUtility.m_Camera.transform.rotation = Quaternion.identity;
 			_previewRenderUtility.m_Camera.farClipPlane = 50;
 		}
@@ -104,7 +103,7 @@ public class Shape2DEditor : Editor {
 		return _mesh;
 	}
 
-	public static Vector2 Drag2D(Vector2 scrollPosition, Rect position) {
+	public static float Drag2D(ref Vector2 scrollPosition, float distance, Rect position) {
 		int controlID = GUIUtility.GetControlID("Slider".GetHashCode(), FocusType.Passive);
 		Event current = Event.current;
 		switch (current.GetTypeForControl(controlID)) {
@@ -129,7 +128,15 @@ public class Shape2DEditor : Editor {
 					GUI.changed = true;
 				}
 				break;
+			case EventType.ScrollWheel:
+				if (GUIUtility.hotControl == controlID) {
+					distance += current.delta.y;
+					distance = Mathf.Max(0, distance);
+					current.Use();
+					GUI.changed = true;
+				}
+				break;
 		}
-		return scrollPosition;
+		return distance;
 	}
 }
