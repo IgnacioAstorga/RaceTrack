@@ -129,7 +129,7 @@ public class Shape2DEditor : Editor {
 				}
 				break;
 			case EventType.ScrollWheel:
-				if (GUIUtility.hotControl == controlID) {
+				if (position.Contains(current.mousePosition)) {
 					_distance += current.delta.y;
 					_distance = Mathf.Max(0, _distance);
 					current.Use();
