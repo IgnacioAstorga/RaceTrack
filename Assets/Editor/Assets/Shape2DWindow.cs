@@ -11,7 +11,7 @@ public class Shape2DWindow : EditorWindow {
 	private Vector2 _offset = Vector2.zero;
 
 	private float _pointRadius = 5f;
-	private float _lineWidth = 4f;
+	private float _lineWidth = 5f;
 	private float _normalLength = 0.35f;
 	private float _normalHandleSize = 0.75f;
 
@@ -70,7 +70,7 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	private void DrawMainPanel() {
-		BeginArea(new Rect(0, _shapeSelectorHeight, position.width, position.height - _shapeSelectorHeight));
+		BeginArea(new Rect(0, _shapeSelectorHeight, CurrentArea.width, CurrentArea.height - _shapeSelectorHeight));
 
 		// Draws the background
 		DrawBackground(_scale);
@@ -85,7 +85,7 @@ public class Shape2DWindow : EditorWindow {
 
 		// Draws the lines
 		for (int i = 0; i < _shape2D.lines.Length - 1; i += 2)
-			DrawLine(points[_shape2D.lines[i]], points[_shape2D.lines[i + 1]], _lineWidth, Color.gray);
+			DrawLine(points[_shape2D.lines[i]], points[_shape2D.lines[i + 1]], _lineWidth, Color.red);
 
 		// Draws the points and handles their events
 		for (int i = 0; i < points.Length; i++) {
@@ -216,6 +216,8 @@ public class Shape2DWindow : EditorWindow {
 			return;
 
 		int dragID = GUIUtility.GetControlID("Drag".GetHashCode(), FocusType.Passive);
+		if (GUIUtility.hotControl == dragID)
+			EditorGUIUtility.AddCursorRect(area, MouseCursor.Pan);
 		switch (current.GetTypeForControl(dragID)) {
 			case EventType.MouseDown:
 				if (current.button == 2) {
