@@ -181,10 +181,7 @@ public class Shape2DWindow : EditorWindow {
 		float pointRadius = _cursorRectScale * _pointRadius;
 		for (int i = 0; i < points.Length; i++) {
 			Rect rect = new Rect(points[i].x - pointRadius, points[i].y - pointRadius, 2 * pointRadius, 2 * pointRadius);
-			if (HandleEvents(ref points[i], rect)) {
-				_selection.Clear();
-				_selection.Add(i);
-			}
+			HandleEvents(ref points[i], rect, i);
 			if (_selection.Contains(i)) {
 				Handles.color = Color.green;
 				Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
@@ -197,10 +194,7 @@ public class Shape2DWindow : EditorWindow {
 		float handleRadius = _cursorRectScale * _pointRadius * _normalHandleSize;
 		for (int i = 0; i < normalHandles.Length; i++) {
 			Rect rect = new Rect(normalHandles[i].x - handleRadius, normalHandles[i].y - handleRadius, 2 * handleRadius, 2 * handleRadius);
-			if (HandleEvents(ref normalHandles[i], rect)) {
-				_selection.Clear();
-				_selection.Add(i);
-			}
+			HandleEvents(ref normalHandles[i], rect, i);
 			if (_selection.Contains(i)) {
 				Handles.color = Color.green;
 				Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
@@ -208,15 +202,18 @@ public class Shape2DWindow : EditorWindow {
 		}
 	}
 
-	private bool HandleEvents(ref Vector2 point, Rect area) {
+	private void HandleEvents(ref Vector2 point, Rect area, int index) {
 		int pointID = GUIUtility.GetControlID("Point".GetHashCode(), FocusType.Passive);
 		Event current = Event.current;
 		switch (current.GetTypeForControl(pointID)) {
 			case EventType.MouseDown:
 				if (area.Contains(current.mousePosition) && current.button == 0) {
-					GUIUtility.hotControl = pointID;
+					if (!current.control) {
+						GUIUtility.hotControl = pointID;
+						_selection.Clear();
+					}
+					_selection.Add(index);
 					current.Use();
-					return true;
 				}
 				break;
 			case EventType.MouseUp:
@@ -228,11 +225,9 @@ public class Shape2DWindow : EditorWindow {
 					point += current.delta;
 					current.Use();
 					GUI.changed = true;
-					return true;
 				}
 				break;
 		}
-		return false;
 	}
 
 	private void HandleMouseEvents(Rect area) {
