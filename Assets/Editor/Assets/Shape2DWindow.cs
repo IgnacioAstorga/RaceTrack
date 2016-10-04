@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 public class Shape2DWindow : EditorWindow {
 	
-	private bool HasSelection { get { return _selectedIndex > -1; } }
+	private bool HasSelection { get { return _selection.Count > 0; } }
 	private Rect CurrentArea { get { return _areas.Peek(); } }
 
 	private float _scale = 100;
@@ -24,7 +24,7 @@ public class Shape2DWindow : EditorWindow {
 
 	private Shape2D _shape2D;
 	
-	private int _selectedIndex = -1;
+	private HashSet<int> _selection = new HashSet<int>();
 
 	private Vector2[] points;
 	private Vector2[] normalHandles;
@@ -44,7 +44,7 @@ public class Shape2DWindow : EditorWindow {
 
 		// Retrieves the shape
 		if (_shape2D == null)
-			_selectedIndex = -1;
+			_selection.Clear();
 		_shape2D = (Shape2D)EditorGUILayout.ObjectField(_shape2D, typeof(Shape2D), false);
 		if (Selection.activeObject != null && Selection.activeObject is Shape2D)
 			LoadShape2D((Shape2D)Selection.activeObject);
@@ -87,17 +87,14 @@ public class Shape2DWindow : EditorWindow {
 		for (int i = 0; i < _shape2D.lines.Length - 1; i += 2)
 			DrawLine(points[_shape2D.lines[i]], points[_shape2D.lines[i + 1]], _lineWidth, Color.red);
 
-		// Draws the points and handles their events
+		// Draws the points
 		for (int i = 0; i < points.Length; i++) {
 			Rect rect = DrawPoint(points[i], _pointRadius, Color.white);
 			EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
-			if (HandlePointEvents(ref points[i], rect))
-				_selectedIndex = i;
-			if (_selectedIndex == i) {
-				Handles.color = Color.green;
-				Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
-			}
 		}
+
+		// Handles the points events
+		HandlePointsEvents();
 
 		// Draws the normals
 		normalHandles = new Vector2[_shape2D.normals.Length];
@@ -111,13 +108,10 @@ public class Shape2DWindow : EditorWindow {
 			DrawLine(normalOrigin, normalHandles[i], _lineWidth * _normalHandleSize, Color.cyan);
 			Rect rect = DrawPoint(normalHandles[i], _pointRadius * _normalHandleSize, Color.cyan);
 			EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
-			if (HandlePointEvents(ref normalHandles[i], rect))
-				_selectedIndex = i;
-			if (_selectedIndex == i) {
-				Handles.color = Color.green;
-				Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
-			}
 		}
+
+		// Handles the normals evenets
+		HandleNormalsEvents();
 
 		// Saves the changes to the shape
 		SaveChanges();
@@ -182,7 +176,39 @@ public class Shape2DWindow : EditorWindow {
 		return new Rect(point.x - radius, point.y - radius, 2 * radius, 2 * radius);
 	}
 
-	private bool HandlePointEvents(ref Vector2 point, Rect area) {
+	private void HandlePointsEvents() {
+		// Points events
+		float pointRadius = _cursorRectScale * _pointRadius;
+		for (int i = 0; i < points.Length; i++) {
+			Rect rect = new Rect(points[i].x - pointRadius, points[i].y - pointRadius, 2 * pointRadius, 2 * pointRadius);
+			if (HandleEvents(ref points[i], rect)) {
+				_selection.Clear();
+				_selection.Add(i);
+			}
+			if (_selection.Contains(i)) {
+				Handles.color = Color.green;
+				Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
+			}
+		}
+	}
+
+	private void HandleNormalsEvents() {
+		// Normal evenets
+		float handleRadius = _cursorRectScale * _pointRadius * _normalHandleSize;
+		for (int i = 0; i < normalHandles.Length; i++) {
+			Rect rect = new Rect(normalHandles[i].x - handleRadius, normalHandles[i].y - handleRadius, 2 * handleRadius, 2 * handleRadius);
+			if (HandleEvents(ref normalHandles[i], rect)) {
+				_selection.Clear();
+				_selection.Add(i);
+			}
+			if (_selection.Contains(i)) {
+				Handles.color = Color.green;
+				Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
+			}
+		}
+	}
+
+	private bool HandleEvents(ref Vector2 point, Rect area) {
 		int pointID = GUIUtility.GetControlID("Point".GetHashCode(), FocusType.Passive);
 		Event current = Event.current;
 		switch (current.GetTypeForControl(pointID)) {
@@ -251,12 +277,14 @@ public class Shape2DWindow : EditorWindow {
 		BeginArea(new Rect(0, CurrentArea.height - _selectedPanelHeight, CurrentArea.width, _selectedPanelHeight), GUI.skin.box);
 
 		// Draws the point field
-		points[_selectedIndex] = EditorGUILayout.Vector2Field("Point", points[_selectedIndex]);
+		foreach (int index in _selection) {
+			points[index] = EditorGUILayout.Vector2Field("Point", points[index]);
 
-		// Draws the normal field
-		Vector2 normal = HandleToNormal(normalHandles[_selectedIndex], points[_selectedIndex]);
-		normal = EditorGUILayout.Vector2Field("Normal", normal);
-		normalHandles[_selectedIndex] = NormalToHandle(normal, points[_selectedIndex]);
+			//// Draws the normal field
+			Vector2 normal = HandleToNormal(normalHandles[index], points[index]);
+			normal = EditorGUILayout.Vector2Field("Normal", normal);
+			normalHandles[index] = NormalToHandle(normal, points[index]);
+		}
 
 		EndArea();
 	}
