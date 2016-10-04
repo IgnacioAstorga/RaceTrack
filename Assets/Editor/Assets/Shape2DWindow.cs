@@ -69,30 +69,11 @@ public class Shape2DWindow : EditorWindow {
 		GUILayout.EndArea();
 	}
 
-	private void DrawBackground() {
-		Handles.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
-		Vector2 origin = position.size / 2 + _offset.Module(_scale);
-
-		// Draws the horizontal grid
-		for (float x = 0; x < position.width / 2; x += _scale) {
-			Handles.DrawLine(new Vector2(origin.x + x, 0), new Vector2(origin.x + x, position.height));
-			if (x != 0)
-				Handles.DrawLine(new Vector2(origin.x - x, 0), new Vector2(origin.x - x, position.height));
-		}
-
-		// Draws the vertical grid
-		for (float y = 0; y < position.width / 2; y += _scale) {
-			Handles.DrawLine(new Vector2(0, origin.y + y), new Vector2(position.width, origin.y + y));
-			if (y != 0)
-				Handles.DrawLine(new Vector2(0, origin.y - y), new Vector2(position.width, origin.y - y));
-		}
-	}
-
 	private void DrawMainPanel() {
 		BeginArea(new Rect(0, _shapeSelectorHeight, position.width, position.height - _shapeSelectorHeight));
 
 		// Draws the background
-		DrawBackground();
+		DrawBackground(_scale);
 
 		// Transforms the points
 		points = new Vector2[_shape2D.points.Length];
@@ -148,6 +129,42 @@ public class Shape2DWindow : EditorWindow {
 		HandleMouseEvents(CurrentArea);
 
 		EndArea();
+	}
+
+	private void DrawBackground(float scale) {
+		Vector2 origin = position.size / 2 + _offset.Module(scale);
+
+		// Modifies the scale to be more fitting
+		if (scale >= 50) {
+			while (scale >= 50)
+				scale /= 2;
+		}
+		else {
+			while (scale < 50)
+				scale *= 2;
+		}
+
+		// Draws the horizontal grid
+		for (float x = 0; x < position.width / 2; x += scale) {
+			if (x % _scale == 0)
+				Handles.color = new Color(0.5f, 0.5f, 0.5f, 1f);
+			else
+				Handles.color = new Color(0.5f, 0.5f, 0.5f, 0.25f);
+			Handles.DrawLine(new Vector2(origin.x + x, 0), new Vector2(origin.x + x, position.height));
+			if (x != 0)
+				Handles.DrawLine(new Vector2(origin.x - x, 0), new Vector2(origin.x - x, position.height));
+		}
+
+		// Draws the vertical grid
+		for (float y = 0; y < position.width / 2; y += scale) {
+			if (y % _scale == 0)
+				Handles.color = new Color(0.5f, 0.5f, 0.5f, 1f);
+			else
+				Handles.color = new Color(0.5f, 0.5f, 0.5f, 0.25f);
+			Handles.DrawLine(new Vector2(0, origin.y + y), new Vector2(position.width, origin.y + y));
+			if (y != 0)
+				Handles.DrawLine(new Vector2(0, origin.y - y), new Vector2(position.width, origin.y - y));
+		}
 	}
 
 	private void DrawLine(Vector2 point1, Vector2 point2,float width, Color color) {
@@ -216,6 +233,9 @@ public class Shape2DWindow : EditorWindow {
 					current.Use();
 					GUI.changed = true;
 				}
+				break;
+			case EventType.ScrollWheel:
+				_scale = Mathf.Min(600, Mathf.Max(1, _scale - current.delta.y * _scale / 60));
 				break;
 		}
 	}
