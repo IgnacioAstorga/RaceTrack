@@ -113,11 +113,11 @@ public class Shape2DWindow : EditorWindow {
 		// Handles the normals evenets
 		HandleNormalsEvents();
 
-		// Saves the changes to the shape
-		SaveChanges();
-
 		// Draws the selected object information
 		DrawSelected();
+
+		// Saves the changes to the shape
+		SaveChanges();
 
 		// Manages the draw area events
 		HandleMouseEvents(CurrentArea);
@@ -238,22 +238,23 @@ public class Shape2DWindow : EditorWindow {
 	private void HandleMouseEvents(Rect area) {
 		// Checks if the event should be considered
 		Event current = Event.current;
-		if (current.type == EventType.Used || !area.Contains(current.mousePosition))
-			return;
 
 		int dragID = GUIUtility.GetControlID("Drag".GetHashCode(), FocusType.Passive);
 		if (GUIUtility.hotControl == dragID)
 			EditorGUIUtility.AddCursorRect(area, MouseCursor.Pan);
 		switch (current.GetTypeForControl(dragID)) {
 			case EventType.MouseDown:
-				if (current.button == 2) {
+				if (area.Contains(current.mousePosition) && current.button == 2) {
 					GUIUtility.hotControl = dragID;
+					EditorGUIUtility.SetWantsMouseJumping(1);
 					current.Use();
 				}
 				break;
 			case EventType.MouseUp:
-				if (GUIUtility.hotControl == dragID && current.button == 2)
+				if (GUIUtility.hotControl == dragID && current.button == 2) {
 					GUIUtility.hotControl = 0;
+					EditorGUIUtility.SetWantsMouseJumping(0);
+				}
 				break;
 			case EventType.MouseDrag:
 				if (GUIUtility.hotControl == dragID) {
@@ -276,11 +277,11 @@ public class Shape2DWindow : EditorWindow {
 		// Draws the panel
 		BeginArea(new Rect(0, CurrentArea.height - _selectedPanelHeight, CurrentArea.width, _selectedPanelHeight), GUI.skin.box);
 
-		// Draws the point field
 		foreach (int index in _selection) {
+			// Draws the point field
 			points[index] = EditorGUILayout.Vector2Field("Point", points[index]);
 
-			//// Draws the normal field
+			// Draws the normal field
 			Vector2 normal = HandleToNormal(normalHandles[index], points[index]);
 			normal = EditorGUILayout.Vector2Field("Normal", normal);
 			normalHandles[index] = NormalToHandle(normal, points[index]);
