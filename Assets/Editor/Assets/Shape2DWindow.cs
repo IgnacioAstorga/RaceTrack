@@ -1,9 +1,11 @@
 ﻿using UnityEngine;
 using UnityEditor;
+using System.Collections.Generic;
 
 public class Shape2DWindow : EditorWindow {
 	
 	private bool HasSelection { get { return _selectedIndex > -1; } }
+	private Rect CurrentArea { get { return _areas.Peek(); } }
 
 	private float _scale = 100;
 	private Vector2 _offset = Vector2.zero;
@@ -15,7 +17,10 @@ public class Shape2DWindow : EditorWindow {
 
 	private float _cursorRectScale = 2f;
 
+	private float _shapeSelectorHeight = 20f;
 	private float _selectedPanelHeight = 80f;
+
+	private Stack<Rect> _areas = new Stack<Rect>();
 
 	private Shape2D _shape2D;
 	
@@ -34,8 +39,8 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	void OnGUI() {
-		// Draws the background
-		DrawBackground();
+		_areas.Clear();
+		_areas.Push(position);
 
 		// Retrieves the shape
 		if (_shape2D == null)
@@ -49,6 +54,19 @@ public class Shape2DWindow : EditorWindow {
 			DrawMainPanel();
 
 		Repaint();
+	}
+
+	private void BeginArea(Rect rectangle, GUIStyle style = null) {
+		_areas.Push(rectangle);
+		if (style == null)
+			GUILayout.BeginArea(rectangle);
+		else
+			GUILayout.BeginArea(rectangle, style);
+	}
+
+	private void EndArea() {
+		_areas.Pop();
+		GUILayout.EndArea();
 	}
 
 	private void DrawBackground() {
@@ -71,6 +89,11 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	private void DrawMainPanel() {
+		BeginArea(new Rect(0, _shapeSelectorHeight, position.width, position.height - _shapeSelectorHeight));
+
+		// Draws the background
+		DrawBackground();
+
 		// Transforms the points
 		points = new Vector2[_shape2D.points.Length];
 		for (int i = 0; i < points.Length; i++) {
@@ -115,14 +138,16 @@ public class Shape2DWindow : EditorWindow {
 			}
 		}
 
-		// Manages the draw area events
-		// Note: This is done here to prevent confusion
+		// Saves the changes to the shape
+		SaveChanges();
 
 		// Draws the selected object information
 		DrawSelected();
 
-		// Saves the changes to the shape
-		SaveChanges();
+		// Manages the draw area events
+		HandleMouseEvents(CurrentArea);
+
+		EndArea();
 	}
 
 	private void DrawLine(Vector2 point1, Vector2 point2,float width, Color color) {
@@ -167,14 +192,41 @@ public class Shape2DWindow : EditorWindow {
 		return false;
 	}
 
+	private void HandleMouseEvents(Rect area) {
+		// Checks if the event should be considered
+		Event current = Event.current;
+		if (current.type == EventType.Used || !area.Contains(current.mousePosition))
+			return;
+
+		int dragID = GUIUtility.GetControlID("Drag".GetHashCode(), FocusType.Passive);
+		switch (current.GetTypeForControl(dragID)) {
+			case EventType.MouseDown:
+				if (current.button == 2) {
+					GUIUtility.hotControl = dragID;
+					current.Use();
+				}
+				break;
+			case EventType.MouseUp:
+				if (GUIUtility.hotControl == dragID && current.button == 2)
+					GUIUtility.hotControl = 0;
+				break;
+			case EventType.MouseDrag:
+				if (GUIUtility.hotControl == dragID) {
+					_offset += current.delta;
+					current.Use();
+					GUI.changed = true;
+				}
+				break;
+		}
+	}
+
 	private void DrawSelected() {
 		// Doesn't draw anything if no element is selected
 		if (!HasSelection)
 			return;
 
 		// Draws the panel
-		Rect panelRect = new Rect(0, position.height - _selectedPanelHeight, position.width, _selectedPanelHeight);
-		GUILayout.BeginArea(panelRect, GUI.skin.box);
+		BeginArea(new Rect(0, CurrentArea.height - _selectedPanelHeight, CurrentArea.width, _selectedPanelHeight), GUI.skin.box);
 
 		// Draws the point field
 		points[_selectedIndex] = EditorGUILayout.Vector2Field("Point", points[_selectedIndex]);
@@ -184,7 +236,7 @@ public class Shape2DWindow : EditorWindow {
 		normal = EditorGUILayout.Vector2Field("Normal", normal);
 		normalHandles[_selectedIndex] = NormalToHandle(normal, points[_selectedIndex]);
 
-		GUILayout.EndArea();
+		EndArea();
 	}
 
 	private Vector2 NormalToHandle(Vector2 normal, Vector2 associatedPoint) {
