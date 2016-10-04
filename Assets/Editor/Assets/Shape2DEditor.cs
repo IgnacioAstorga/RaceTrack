@@ -14,7 +14,7 @@ public class Shape2DEditor : Editor {
 	private float _distance = 15;
 
 	public override void OnPreviewGUI(Rect rectangle, GUIStyle background) {
-		_distance = Drag2D(ref _drag, _distance, rectangle);
+		ReadInput(rectangle);
 
 		if (Event.current.type == EventType.Repaint) {
 			_previewRenderUtility.BeginPreview(rectangle, background);
@@ -103,7 +103,7 @@ public class Shape2DEditor : Editor {
 		return _mesh;
 	}
 
-	public static float Drag2D(ref Vector2 scrollPosition, float distance, Rect position) {
+	public void ReadInput(Rect position) {
 		int controlID = GUIUtility.GetControlID("Slider".GetHashCode(), FocusType.Passive);
 		Event current = Event.current;
 		switch (current.GetTypeForControl(controlID)) {
@@ -122,21 +122,20 @@ public class Shape2DEditor : Editor {
 				break;
 			case EventType.MouseDrag:
 				if (GUIUtility.hotControl == controlID) {
-					scrollPosition -= current.delta * (float)((!current.shift) ? 1 : 3) / Mathf.Min(position.width, position.height) * 140f;
-					scrollPosition.y = Mathf.Clamp(scrollPosition.y, -90f, 90f);
+					_drag -= current.delta * (float)((!current.shift) ? 1 : 3) / Mathf.Min(position.width, position.height) * 140f;
+					_drag.y = Mathf.Clamp(_drag.y, -90f, 90f);
 					current.Use();
 					GUI.changed = true;
 				}
 				break;
 			case EventType.ScrollWheel:
 				if (GUIUtility.hotControl == controlID) {
-					distance += current.delta.y;
-					distance = Mathf.Max(0, distance);
+					_distance += current.delta.y;
+					_distance = Mathf.Max(0, _distance);
 					current.Use();
 					GUI.changed = true;
 				}
 				break;
 		}
-		return distance;
 	}
 }
