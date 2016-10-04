@@ -3,6 +3,11 @@ using UnityEditor;
 
 public class Shape2DWindow : EditorWindow {
 
+	enum SelectedObjectType {
+		POINT,
+		NORMAL
+	}
+
 	private float _scale = 100;
 	private Vector2 _offset = Vector2.zero;
 
@@ -15,6 +20,12 @@ public class Shape2DWindow : EditorWindow {
 
 	private Shape2D _shape2D;
 
+	private SelectedObjectType _selectedObjectType;
+	private int _selectedIndex = -1;
+
+	private Vector2[] points;
+	private Vector2[] normalHandles;
+
 	[MenuItem("Window/Shape 2D Editor")]
 	public static void ShowWindow() {
 		GetWindow<Shape2DWindow>();
@@ -25,12 +36,13 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	void OnGUI() {
+		// Retrieves the shape
 		_shape2D = (Shape2D)EditorGUILayout.ObjectField(_shape2D, typeof(Shape2D), false);
 
 		// Draw Shape & Handle Events
 		if (_shape2D != null) {
 			// Transforms the points
-			Vector2[] points = new Vector2[_shape2D.points.Length];
+			points = new Vector2[_shape2D.points.Length];
 			for (int i = 0; i < points.Length; i++) {
 				points[i] = _shape2D.points[i] * _scale;
 				points[i].y *= -1;
@@ -41,42 +53,43 @@ public class Shape2DWindow : EditorWindow {
 			for (int i = 0; i < _shape2D.lines.Length - 1; i += 2)
 				DrawLine(points[_shape2D.lines[i]], points[_shape2D.lines[i + 1]], _lineWidth, Color.gray);
 
-			// Draws the normals
-			Vector2[] normalHandles = new Vector2[_shape2D.normals.Length];
-			for (int i = 0; i < _shape2D.normals.Length; i++) {
-				normalHandles[i] = _shape2D.normals[i] * _normalLength * _scale;
-				normalHandles[i].y *= -1;
-				normalHandles[i] += points[i];
-
-				DrawLine(points[i], normalHandles[i], _lineWidth * _normalHandleSize, Color.cyan);
-				Rect rect = DrawPoint(normalHandles[i], _pointRadius * _normalHandleSize, Color.cyan);
-				EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
-				HandlePointEvents(ref normalHandles[i], rect);
-			}
-
 			// Draws the points and handles their events
 			for (int i = 0; i < points.Length; i++) {
 				Rect rect = DrawPoint(points[i], _pointRadius, Color.white);
 				EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
-				HandlePointEvents(ref points[i], rect);
+				if (HandlePointEvents(ref points[i], rect)) {
+					_selectedObjectType = SelectedObjectType.POINT;
+					_selectedIndex = i;
+				}
+				if (_selectedIndex == i && _selectedObjectType == SelectedObjectType.POINT)
+					Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
 			}
+
+			// Draws the normals
+			normalHandles = new Vector2[_shape2D.normals.Length];
+			for (int i = 0; i < _shape2D.normals.Length; i++) {
+				normalHandles[i] = NormalToHandle(_shape2D.normals[i], points[i]);
+
+				Vector2 normalOrigin = _shape2D.normals[i] * _pointRadius;
+				normalOrigin.y *= -1;
+				normalOrigin += points[i];
+
+				DrawLine(normalOrigin, normalHandles[i], _lineWidth * _normalHandleSize, Color.cyan);
+				Rect rect = DrawPoint(normalHandles[i], _pointRadius * _normalHandleSize, Color.cyan);
+				EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
+				if (HandlePointEvents(ref normalHandles[i], rect)) {
+					_selectedObjectType = SelectedObjectType.NORMAL;
+					_selectedIndex = i;
+				}
+				if (_selectedIndex == i && _selectedObjectType == SelectedObjectType.NORMAL)
+					Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
+			}
+
+			// Draws the selected object information
+			DrawSelected();
 
 			// Saves the changes to the shape
-			Undo.RecordObject(_shape2D, "Modify Shape2D");
-
-			// Saves the normals
-			for (int i = 0; i < normalHandles.Length; i++) {
-				normalHandles[i] -= points[i];
-				normalHandles[i].y *= -1;
-				_shape2D.normals[i] = normalHandles[i].normalized;
-			}
-
-			// Saves the points
-			for (int i = 0; i < points.Length; i++) {
-				points[i] -= position.size / 2 + _offset;
-				points[i].y *= -1;
-				_shape2D.points[i] = points[i] / _scale;
-			}
+			SaveChanges();
 		}
 
 		Repaint();
@@ -97,7 +110,7 @@ public class Shape2DWindow : EditorWindow {
 		return new Rect(point.x - radius, point.y - radius, 2 * radius, 2 * radius);
 	}
 
-	private void HandlePointEvents(ref Vector2 point, Rect area) {
+	private bool HandlePointEvents(ref Vector2 point, Rect area) {
 		int pointID = GUIUtility.GetControlID("Point".GetHashCode(), FocusType.Passive);
 		Event current = Event.current;
 		switch (current.GetTypeForControl(pointID)) {
@@ -105,6 +118,7 @@ public class Shape2DWindow : EditorWindow {
 				if (area.Contains(current.mousePosition) && current.button == 0) {
 					GUIUtility.hotControl = pointID;
 					current.Use();
+					return true;
 				}
 				break;
 			case EventType.MouseUp:
@@ -116,8 +130,53 @@ public class Shape2DWindow : EditorWindow {
 					point += current.delta;
 					current.Use();
 					GUI.changed = true;
+					return true;
 				}
 				break;
+		}
+		return false;
+	}
+
+	private void DrawSelected() {
+		switch (_selectedObjectType) {
+			case SelectedObjectType.POINT:
+				points[_selectedIndex] = EditorGUILayout.Vector2Field("Point", points[_selectedIndex]);
+				break;
+			case SelectedObjectType.NORMAL:
+				Vector2 normal = HandleToNormal(normalHandles[_selectedIndex], points[_selectedIndex]);
+				normal = EditorGUILayout.Vector2Field("Normal", normal);
+				normalHandles[_selectedIndex] = NormalToHandle(normal, points[_selectedIndex]);
+				break;
+		}
+	}
+
+	private Vector2 NormalToHandle(Vector2 normal, Vector2 associatedPoint) {
+		Vector2 handle = normal * _normalLength * _scale;
+		handle.y *= -1;
+		handle += associatedPoint;
+		return handle;
+	}
+
+	private Vector2 HandleToNormal(Vector2 handle, Vector2 associatedPoint) {
+		Vector2 normal = handle;
+		normal -= associatedPoint;
+		normal.y *= -1;
+		return normal.normalized;
+	}
+
+	private void SaveChanges() {
+		// Records an Undo command
+		Undo.RecordObject(_shape2D, "Modify Shape2D");
+
+		// Saves the normals
+		for (int i = 0; i < normalHandles.Length; i++)
+			_shape2D.normals[i] = HandleToNormal(normalHandles[i], points[i]);
+
+		// Saves the points
+		for (int i = 0; i < points.Length; i++) {
+			points[i] -= position.size / 2 + _offset;
+			points[i].y *= -1;
+			_shape2D.points[i] = points[i] / _scale;
 		}
 	}
 
