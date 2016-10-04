@@ -159,6 +159,12 @@ public class Shape2DWindow : EditorWindow {
 			if (y != 0)
 				Handles.DrawLine(new Vector2(0, origin.y - y), new Vector2(position.width, origin.y - y));
 		}
+
+		// Draws the ADD and REMOVE rects
+		if (Event.current.alt)
+			EditorGUIUtility.AddCursorRect(CurrentArea, MouseCursor.ArrowMinus);
+		else if (Event.current.control)
+			EditorGUIUtility.AddCursorRect(CurrentArea, MouseCursor.ArrowPlus);
 	}
 
 	private void DrawLine(Vector2 point1, Vector2 point2,float width, Color color) {
@@ -208,11 +214,16 @@ public class Shape2DWindow : EditorWindow {
 		switch (current.GetTypeForControl(pointID)) {
 			case EventType.MouseDown:
 				if (area.Contains(current.mousePosition) && current.button == 0) {
-					if (!current.control) {
-						GUIUtility.hotControl = pointID;
-						_selection.Clear();
+					if (current.alt) {
+						_selection.Remove(index);
 					}
-					_selection.Add(index);
+					else {
+						if (!current.control) {
+							GUIUtility.hotControl = pointID;
+							_selection.Clear();
+						}
+						_selection.Add(index);
+					}
 					current.Use();
 				}
 				break;
