@@ -25,6 +25,7 @@ public class Shape2DWindow : EditorWindow {
 	private Shape2D _shape2D;
 	
 	private HashSet<int> _selection = new HashSet<int>();
+	private Vector2 _selectionStart;
 
 	private Vector2[] points;
 	private Vector2[] normalHandles;
@@ -245,6 +246,7 @@ public class Shape2DWindow : EditorWindow {
 		// Checks if the event should be considered
 		Event current = Event.current;
 
+		// Drag Events
 		int dragID = GUIUtility.GetControlID("Drag".GetHashCode(), FocusType.Passive);
 		if (GUIUtility.hotControl == dragID)
 			EditorGUIUtility.AddCursorRect(area, MouseCursor.Pan);
@@ -252,25 +254,65 @@ public class Shape2DWindow : EditorWindow {
 			case EventType.MouseDown:
 				if (area.Contains(current.mousePosition) && current.button == 2) {
 					GUIUtility.hotControl = dragID;
-					EditorGUIUtility.SetWantsMouseJumping(1);
 					current.Use();
+					EditorGUIUtility.SetWantsMouseJumping(1);
 				}
 				break;
 			case EventType.MouseUp:
 				if (GUIUtility.hotControl == dragID && current.button == 2) {
 					GUIUtility.hotControl = 0;
 					EditorGUIUtility.SetWantsMouseJumping(0);
+					current.Use();
 				}
 				break;
 			case EventType.MouseDrag:
 				if (GUIUtility.hotControl == dragID) {
 					_offset += current.delta;
 					current.Use();
-					GUI.changed = true;
 				}
 				break;
 			case EventType.ScrollWheel:
 				_scale = Mathf.Min(600, Mathf.Max(1, _scale - current.delta.y * _scale / 60));
+				break;
+		}
+
+		// Select Events
+		int selectID = GUIUtility.GetControlID("Select".GetHashCode(), FocusType.Passive);
+		if (GUIUtility.hotControl == selectID) {
+			Rect rect = new Rect();
+			rect = rect.FromPoints(_selectionStart, current.mousePosition);
+			Color faceColor = Color.blue;
+			faceColor.a = 0.1f;
+			Color outlineColor = Color.blue;
+			outlineColor.a = 0.25f;
+			Handles.color = Color.white;
+			Handles.DrawSolidRectangleWithOutline(rect, faceColor, outlineColor);
+		}
+		switch (current.GetTypeForControl(selectID)) {
+			case EventType.MouseDown:
+				if (area.Contains(current.mousePosition) && current.button == 0) {
+					GUIUtility.hotControl = selectID;
+					current.Use();
+					_selectionStart = current.mousePosition;
+				}
+				break;
+			case EventType.MouseUp:
+				if (GUIUtility.hotControl == selectID && current.button == 0) {
+					Rect rect = new Rect();
+					rect = rect.FromPoints(_selectionStart, current.mousePosition);
+					if (!current.alt && !current.control)
+						_selection.Clear();
+					for (int i = 0; i < points.Length; i++) {
+						if (rect.Contains(points[i])) {
+							if (current.alt)
+								_selection.Remove(i);
+							else
+								_selection.Add(i);
+						}
+					}
+					GUIUtility.hotControl = 0;
+					current.Use();
+				}
 				break;
 		}
 	}
@@ -320,37 +362,9 @@ public class Shape2DWindow : EditorWindow {
 
 		// Saves the points
 		for (int i = 0; i < points.Length; i++) {
-			points[i] -= position.size / 2 + _offset;
-			points[i].y *= -1;
-			_shape2D.points[i] = points[i] / _scale;
+			Vector2 point = points[i] - position.size / 2 - _offset;
+			point.y *= -1;
+			_shape2D.points[i] = point / _scale;
 		}
-	}
-
-	void TODO() {
-		#region <<< Info // View >>>
-		GUILayout.BeginHorizontal();
-
-		#region Info <>
-		// TODO
-
-		#region ^^^ Points // Lines vvv
-		GUILayout.BeginVertical();
-
-		for (int i = 0; i < 20; i++)
-			GUILayout.Label("dfs");
-
-		GUILayout.EndVertical();
-		#endregion ^^^ Points // Lines vvv
-
-		// TODO
-		#endregion Info <>
-
-		#region View <>
-		GUILayout.FlexibleSpace();
-		GUILayout.Label("Lower part");
-		#endregion View <>
-
-		GUILayout.EndHorizontal();
-		#endregion <<< Info // View >>>
 	}
 }
