@@ -2,6 +2,8 @@
 using UnityEditor;
 
 public class Shape2DWindow : EditorWindow {
+	
+	private bool HasSelection { get { return _selectedIndex > -1; } }
 
 	private float _scale = 100;
 	private Vector2 _offset = Vector2.zero;
@@ -32,63 +34,95 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	void OnGUI() {
+		// Draws the background
+		DrawBackground();
+
 		// Retrieves the shape
+		if (_shape2D == null)
+			_selectedIndex = -1;
 		_shape2D = (Shape2D)EditorGUILayout.ObjectField(_shape2D, typeof(Shape2D), false);
+		if (Selection.activeObject != null && Selection.activeObject is Shape2D)
+			LoadShape2D((Shape2D)Selection.activeObject);
 
 		// Draw Shape & Handle Events
-		if (_shape2D != null) {
-			// Transforms the points
-			points = new Vector2[_shape2D.points.Length];
-			for (int i = 0; i < points.Length; i++) {
-				points[i] = _shape2D.points[i] * _scale;
-				points[i].y *= -1;
-				points[i] += position.size / 2 + _offset;
-			}
-
-			// Draws the lines
-			for (int i = 0; i < _shape2D.lines.Length - 1; i += 2)
-				DrawLine(points[_shape2D.lines[i]], points[_shape2D.lines[i + 1]], _lineWidth, Color.gray);
-
-			// Draws the points and handles their events
-			for (int i = 0; i < points.Length; i++) {
-				Rect rect = DrawPoint(points[i], _pointRadius, Color.white);
-				EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
-				if (HandlePointEvents(ref points[i], rect))
-					_selectedIndex = i;
-				if (_selectedIndex == i) {
-					Handles.color = Color.green;
-					Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
-				}
-			}
-
-			// Draws the normals
-			normalHandles = new Vector2[_shape2D.normals.Length];
-			for (int i = 0; i < _shape2D.normals.Length; i++) {
-				normalHandles[i] = NormalToHandle(_shape2D.normals[i], points[i]);
-
-				Vector2 normalOrigin = _shape2D.normals[i] * _pointRadius;
-				normalOrigin.y *= -1;
-				normalOrigin += points[i];
-
-				DrawLine(normalOrigin, normalHandles[i], _lineWidth * _normalHandleSize, Color.cyan);
-				Rect rect = DrawPoint(normalHandles[i], _pointRadius * _normalHandleSize, Color.cyan);
-				EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
-				if (HandlePointEvents(ref normalHandles[i], rect))
-					_selectedIndex = i;
-				if (_selectedIndex == i) {
-					Handles.color = Color.green;
-					Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
-				}
-			}
-
-			// Draws the selected object information
-			DrawSelected();
-
-			// Saves the changes to the shape
-			SaveChanges();
-		}
+		if (_shape2D != null)
+			DrawMainPanel();
 
 		Repaint();
+	}
+
+	private void DrawBackground() {
+		Handles.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+		Vector2 origin = position.size / 2 + _offset.Module(_scale);
+
+		// Draws the horizontal grid
+		for (float x = 0; x < position.width / 2; x += _scale) {
+			Handles.DrawLine(new Vector2(origin.x + x, 0), new Vector2(origin.x + x, position.height));
+			if (x != 0)
+				Handles.DrawLine(new Vector2(origin.x - x, 0), new Vector2(origin.x - x, position.height));
+		}
+
+		// Draws the vertical grid
+		for (float y = 0; y < position.width / 2; y += _scale) {
+			Handles.DrawLine(new Vector2(0, origin.y + y), new Vector2(position.width, origin.y + y));
+			if (y != 0)
+				Handles.DrawLine(new Vector2(0, origin.y - y), new Vector2(position.width, origin.y - y));
+		}
+	}
+
+	private void DrawMainPanel() {
+		// Transforms the points
+		points = new Vector2[_shape2D.points.Length];
+		for (int i = 0; i < points.Length; i++) {
+			points[i] = _shape2D.points[i] * _scale;
+			points[i].y *= -1;
+			points[i] += position.size / 2 + _offset;
+		}
+
+		// Draws the lines
+		for (int i = 0; i < _shape2D.lines.Length - 1; i += 2)
+			DrawLine(points[_shape2D.lines[i]], points[_shape2D.lines[i + 1]], _lineWidth, Color.gray);
+
+		// Draws the points and handles their events
+		for (int i = 0; i < points.Length; i++) {
+			Rect rect = DrawPoint(points[i], _pointRadius, Color.white);
+			EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
+			if (HandlePointEvents(ref points[i], rect))
+				_selectedIndex = i;
+			if (_selectedIndex == i) {
+				Handles.color = Color.green;
+				Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
+			}
+		}
+
+		// Draws the normals
+		normalHandles = new Vector2[_shape2D.normals.Length];
+		for (int i = 0; i < _shape2D.normals.Length; i++) {
+			normalHandles[i] = NormalToHandle(_shape2D.normals[i], points[i]);
+
+			Vector2 normalOrigin = _shape2D.normals[i] * _pointRadius;
+			normalOrigin.y *= -1;
+			normalOrigin += points[i];
+
+			DrawLine(normalOrigin, normalHandles[i], _lineWidth * _normalHandleSize, Color.cyan);
+			Rect rect = DrawPoint(normalHandles[i], _pointRadius * _normalHandleSize, Color.cyan);
+			EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
+			if (HandlePointEvents(ref normalHandles[i], rect))
+				_selectedIndex = i;
+			if (_selectedIndex == i) {
+				Handles.color = Color.green;
+				Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
+			}
+		}
+
+		// Manages the draw area events
+		// Note: This is done here to prevent confusion
+
+		// Draws the selected object information
+		DrawSelected();
+
+		// Saves the changes to the shape
+		SaveChanges();
 	}
 
 	private void DrawLine(Vector2 point1, Vector2 point2,float width, Color color) {
@@ -135,7 +169,7 @@ public class Shape2DWindow : EditorWindow {
 
 	private void DrawSelected() {
 		// Doesn't draw anything if no element is selected
-		if (_selectedIndex == -1)
+		if (!HasSelection)
 			return;
 
 		// Draws the panel
