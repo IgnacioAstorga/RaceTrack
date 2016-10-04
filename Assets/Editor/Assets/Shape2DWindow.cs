@@ -3,11 +3,6 @@ using UnityEditor;
 
 public class Shape2DWindow : EditorWindow {
 
-	enum SelectedObjectType {
-		POINT,
-		NORMAL
-	}
-
 	private float _scale = 100;
 	private Vector2 _offset = Vector2.zero;
 
@@ -18,9 +13,10 @@ public class Shape2DWindow : EditorWindow {
 
 	private float _cursorRectScale = 2f;
 
-	private Shape2D _shape2D;
+	private float _selectedPanelHeight = 80f;
 
-	private SelectedObjectType _selectedObjectType;
+	private Shape2D _shape2D;
+	
 	private int _selectedIndex = -1;
 
 	private Vector2[] points;
@@ -28,7 +24,7 @@ public class Shape2DWindow : EditorWindow {
 
 	[MenuItem("Window/Shape 2D Editor")]
 	public static void ShowWindow() {
-		GetWindow<Shape2DWindow>();
+		GetWindow<Shape2DWindow>("Shape 2D Editor");
 	}
 
 	public void LoadShape2D(Shape2D shape2D) {
@@ -57,12 +53,12 @@ public class Shape2DWindow : EditorWindow {
 			for (int i = 0; i < points.Length; i++) {
 				Rect rect = DrawPoint(points[i], _pointRadius, Color.white);
 				EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
-				if (HandlePointEvents(ref points[i], rect)) {
-					_selectedObjectType = SelectedObjectType.POINT;
+				if (HandlePointEvents(ref points[i], rect))
 					_selectedIndex = i;
-				}
-				if (_selectedIndex == i && _selectedObjectType == SelectedObjectType.POINT)
+				if (_selectedIndex == i) {
+					Handles.color = Color.green;
 					Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
+				}
 			}
 
 			// Draws the normals
@@ -77,12 +73,12 @@ public class Shape2DWindow : EditorWindow {
 				DrawLine(normalOrigin, normalHandles[i], _lineWidth * _normalHandleSize, Color.cyan);
 				Rect rect = DrawPoint(normalHandles[i], _pointRadius * _normalHandleSize, Color.cyan);
 				EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
-				if (HandlePointEvents(ref normalHandles[i], rect)) {
-					_selectedObjectType = SelectedObjectType.NORMAL;
+				if (HandlePointEvents(ref normalHandles[i], rect))
 					_selectedIndex = i;
-				}
-				if (_selectedIndex == i && _selectedObjectType == SelectedObjectType.NORMAL)
+				if (_selectedIndex == i) {
+					Handles.color = Color.green;
 					Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
+				}
 			}
 
 			// Draws the selected object information
@@ -138,16 +134,23 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	private void DrawSelected() {
-		switch (_selectedObjectType) {
-			case SelectedObjectType.POINT:
-				points[_selectedIndex] = EditorGUILayout.Vector2Field("Point", points[_selectedIndex]);
-				break;
-			case SelectedObjectType.NORMAL:
-				Vector2 normal = HandleToNormal(normalHandles[_selectedIndex], points[_selectedIndex]);
-				normal = EditorGUILayout.Vector2Field("Normal", normal);
-				normalHandles[_selectedIndex] = NormalToHandle(normal, points[_selectedIndex]);
-				break;
-		}
+		// Doesn't draw anything if no element is selected
+		if (_selectedIndex == -1)
+			return;
+
+		// Draws the panel
+		Rect panelRect = new Rect(0, position.height - _selectedPanelHeight, position.width, _selectedPanelHeight);
+		GUILayout.BeginArea(panelRect, GUI.skin.box);
+
+		// Draws the point field
+		points[_selectedIndex] = EditorGUILayout.Vector2Field("Point", points[_selectedIndex]);
+
+		// Draws the normal field
+		Vector2 normal = HandleToNormal(normalHandles[_selectedIndex], points[_selectedIndex]);
+		normal = EditorGUILayout.Vector2Field("Normal", normal);
+		normalHandles[_selectedIndex] = NormalToHandle(normal, points[_selectedIndex]);
+
+		GUILayout.EndArea();
 	}
 
 	private Vector2 NormalToHandle(Vector2 normal, Vector2 associatedPoint) {
