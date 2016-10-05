@@ -226,7 +226,7 @@ public class Shape2DWindow : EditorWindow {
 				break;
 			case EventType.MouseDrag:
 				if (GUIUtility.hotControl == pointID) {
-					point += current.delta;
+					point = current.mousePosition;
 					current.Use();
 					GUI.changed = true;
 				}
