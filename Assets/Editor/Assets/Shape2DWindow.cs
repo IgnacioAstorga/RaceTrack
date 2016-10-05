@@ -8,6 +8,7 @@ public class Shape2DWindow : EditorWindow {
 	private Rect CurrentArea { get { return _areas.Peek(); } }
 
 	private float _scale = 100;
+	private float _fixedScale = 100;
 	private Vector2 _offset = Vector2.zero;
 
 	private float _pointRadius = 5f;
@@ -81,7 +82,7 @@ public class Shape2DWindow : EditorWindow {
 		for (int i = 0; i < points.Length; i++) {
 			points[i] = _shape2D.points[i] * _scale;
 			points[i].y *= -1;
-			points[i] += position.size / 2 + _offset;
+			points[i] += CurrentArea.size / 2 + _offset;
 		}
 
 		// Draws the lines
@@ -127,39 +128,30 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	private void DrawBackground(float scale) {
-		Vector2 origin = position.size / 2 + _offset.Module(scale);
-
-		// Modifies the scale to be more fitting
-		if (scale >= 50) {
-			while (scale >= 50)
-				scale /= 2;
-		}
-		else {
-			while (scale < 50)
-				scale *= 2;
-		}
+		while (scale > _fixedScale)
+			scale /= 2;
+		Vector2 origin = CurrentArea.size / 2 + _offset.Module(scale);
 
 		// Draws the horizontal grid
-		for (float x = 0; x < position.width / 2; x += scale) {
-			if (x % _scale == 0)
-				Handles.color = new Color(0.5f, 0.5f, 0.5f, 1f);
-			else
-				Handles.color = new Color(0.5f, 0.5f, 0.5f, 0.25f);
-			Handles.DrawLine(new Vector2(origin.x + x, 0), new Vector2(origin.x + x, position.height));
-			if (x != 0)
-				Handles.DrawLine(new Vector2(origin.x - x, 0), new Vector2(origin.x - x, position.height));
+		for (float x = 0; x < CurrentArea.width / 2; x += scale) {
+			Handles.color = new Color(0.5f, 0.5f, 0.5f, 0.25f);
+			Handles.DrawLine(new Vector2(origin.x + x, 0), new Vector2(origin.x + x, CurrentArea.height));
+			Handles.DrawLine(new Vector2(origin.x - x, 0), new Vector2(origin.x - x, CurrentArea.height));
 		}
 
 		// Draws the vertical grid
-		for (float y = 0; y < position.width / 2; y += scale) {
-			if (y % _scale == 0)
-				Handles.color = new Color(0.5f, 0.5f, 0.5f, 1f);
-			else
-				Handles.color = new Color(0.5f, 0.5f, 0.5f, 0.25f);
-			Handles.DrawLine(new Vector2(0, origin.y + y), new Vector2(position.width, origin.y + y));
-			if (y != 0)
-				Handles.DrawLine(new Vector2(0, origin.y - y), new Vector2(position.width, origin.y - y));
+		for (float y = 0; y < CurrentArea.height / 2; y += scale) {
+			Handles.color = new Color(0.5f, 0.5f, 0.5f, 0.25f);
+			Handles.DrawLine(new Vector2(0, origin.y + y), new Vector2(CurrentArea.width, origin.y + y));
+			Handles.DrawLine(new Vector2(0, origin.y - y), new Vector2(CurrentArea.width, origin.y - y));
 		}
+
+		// Draws the main axis
+		Vector2 center = CurrentArea.size / 2 + _offset;
+		Handles.color = Color.red;
+		Handles.DrawLine(new Vector2(0, center.y), new Vector2(CurrentArea.width, center.y));
+		Handles.color = Color.green;
+		Handles.DrawLine(new Vector2(center.x, 0), new Vector2(center.x, CurrentArea.height));
 
 		// Draws the ADD and REMOVE rects
 		if (Event.current.alt)
@@ -190,7 +182,7 @@ public class Shape2DWindow : EditorWindow {
 			Rect rect = new Rect(points[i].x - pointRadius, points[i].y - pointRadius, 2 * pointRadius, 2 * pointRadius);
 			HandleEvents(ref points[i], rect, i);
 			if (_selection.Contains(i)) {
-				Handles.color = Color.cyan;
+				Handles.color = Color.red;
 				Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
 			}
 		}
@@ -203,7 +195,7 @@ public class Shape2DWindow : EditorWindow {
 			Rect rect = new Rect(normalHandles[i].x - handleRadius, normalHandles[i].y - handleRadius, 2 * handleRadius, 2 * handleRadius);
 			HandleEvents(ref normalHandles[i], rect, i);
 			if (_selection.Contains(i)) {
-				Handles.color = Color.cyan;
+				Handles.color = Color.red;
 				Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
 			}
 		}
@@ -287,20 +279,6 @@ public class Shape2DWindow : EditorWindow {
 			Handles.color = Color.white;
 			Handles.DrawSolidRectangleWithOutline(rect, faceColor, outlineColor);
 		}
-		else if (_selection.Count >= 2) {
-			// Draw selection bounding box
-			List<Vector2> selectedPoints = new List<Vector2>();
-			foreach (int index in _selection)
-				selectedPoints.Add(points[index]);
-			Rect rect = new Rect();
-			rect = rect.FromPoints(selectedPoints);
-			rect = rect.Expand(5);
-			Color faceColor = new Color(0.25f, 0.25f, 0.25f, 0.1f);
-			Color outlineColor = new Color(0.25f, 0.25f, 0.25f, 0.25f);
-			Handles.color = Color.white;
-			Handles.DrawSolidRectangleWithOutline(rect, faceColor, outlineColor);
-
-		}
 		switch (current.GetTypeForControl(selectID)) {
 			case EventType.MouseDown:
 				if (area.Contains(current.mousePosition) && current.button == 0) {
@@ -352,7 +330,7 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	private Vector2 NormalToHandle(Vector2 normal, Vector2 associatedPoint) {
-		Vector2 handle = normal * _normalLength * _scale;
+		Vector2 handle = normal * _normalLength * _fixedScale;
 		handle.y *= -1;
 		handle += associatedPoint;
 		return handle;
@@ -375,7 +353,7 @@ public class Shape2DWindow : EditorWindow {
 
 		// Saves the points
 		for (int i = 0; i < points.Length; i++) {
-			Vector2 point = points[i] - position.size / 2 - _offset;
+			Vector2 point = points[i] - CurrentArea.size / 2 - _offset;
 			point.y *= -1;
 			_shape2D.points[i] = point / _scale;
 		}
