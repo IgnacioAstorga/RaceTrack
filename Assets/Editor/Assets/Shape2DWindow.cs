@@ -99,12 +99,15 @@ public class Shape2DWindow : EditorWindow {
 		// Handles the points events
 		HandlePointsEvents();
 
+		// Draws the selected object information
+		DrawSelected();
+
 		// Draws the normals
 		normalHandles = new Vector2[_shape2D.normals.Length];
 		for (int i = 0; i < _shape2D.normals.Length; i++) {
 			normalHandles[i] = NormalToHandle(_shape2D.normals[i], points[i]);
 
-			Vector2 normalOrigin = _shape2D.normals[i] * _pointRadius;
+			Vector2 normalOrigin = _shape2D.normals[i].normalized * _pointRadius;
 			normalOrigin.y *= -1;
 			normalOrigin += points[i];
 
@@ -115,9 +118,6 @@ public class Shape2DWindow : EditorWindow {
 
 		// Handles the normals evenets
 		HandleNormalsEvents();
-
-		// Draws the selected object information
-		DrawSelected();
 
 		// Saves the changes to the shape
 		SaveChanges();
@@ -331,18 +331,101 @@ public class Shape2DWindow : EditorWindow {
 
 		// Draws the panel
 		BeginArea(new Rect(0, CurrentArea.height - _selectedPanelHeight, CurrentArea.width, _selectedPanelHeight), GUI.skin.box);
+		EditorGUILayout.BeginVertical();
 
-		foreach (int index in _selection) {
-			// Draws the point field
-			points[index] = EditorGUILayout.Vector2Field("Point", points[index]);
+		// Draws the point field
+		Vector2[] selectedPoints;
+		int[] pointIndices = GetSelectedPoints(out selectedPoints);
+		DrawMultiVector2("Point", ref selectedPoints);
+		for (int i = 0; i < selectedPoints.Length; i++)
+			points[pointIndices[i]] = selectedPoints[i];
+		
+		// Draws the normal field
+		Vector2[] selectedNormals;
+		int[] normalIndices = GetSelectedNormals(out selectedNormals);
+		DrawMultiVector2("Normal", ref selectedNormals);
+		for (int i = 0; i < selectedNormals.Length; i++)
+			_shape2D.normals[normalIndices[i]] = selectedNormals[i];
 
-			// Draws the normal field
-			Vector2 normal = HandleToNormal(normalHandles[index], points[index]);
-			normal = EditorGUILayout.Vector2Field("Normal", normal);
-			normalHandles[index] = NormalToHandle(normal, points[index]);
+		EditorGUILayout.EndVertical();
+		EndArea();
+	}
+
+	private void DrawMultiVector2(string label, ref Vector2[] collection) {
+		// Checks which values are not the same
+		float x = collection[0].x;
+		bool sameX = true;
+		float y = collection[0].y;
+		bool sameY = true;
+		for (int i = 1; i < collection.Length; i++) {
+			sameX &= x == collection[i].x;
+			sameY &= y == collection[i].y;
+			if (!sameX && !sameY)
+				break;
 		}
 
-		EndArea();
+		// Draws the field
+		EditorGUILayout.LabelField(label);
+		EditorGUILayout.BeginHorizontal();
+		if (sameX) {
+			float userX = EditorGUILayout.FloatField("X", x);
+			for (int i = 0; i < collection.Length; i++)
+				collection[i].x = userX;
+		}
+		else {
+			string userX = EditorGUILayout.TextField("X", "-");
+
+			// Modifies the user modified values
+			if (x.ToString() != userX) {
+				float newX;
+				if (float.TryParse(userX, out newX)) {
+					for (int i = 0; i < collection.Length; i++)
+						collection[i].x = newX;
+				}
+			}
+		}
+		if (sameY) {
+			float userY = EditorGUILayout.FloatField("Y", y);
+			for (int i = 0; i < collection.Length; i++)
+				collection[i].y = userY;
+		}
+		else {
+			string userY = EditorGUILayout.TextField("Y", "-");
+
+			// Modifies the user modified values
+			if (x.ToString() != userY) {
+				float newY;
+				if (float.TryParse(userY, out newY)) {
+					for (int i = 0; i < collection.Length; i++)
+						collection[i].y = newY;
+				}
+			}
+		}
+		EditorGUILayout.EndHorizontal();
+	}
+
+	private int[] GetSelectedPoints(out Vector2[] selectedPoints) {
+		selectedPoints = new Vector2[_selection.Count];
+		int[] indices = new int[_selection.Count];
+		int i = 0;
+		foreach (int index in _selection) {
+			indices[i] = index;
+			selectedPoints[i] = points[index];
+			i++;
+		}
+		return indices;
+	}
+
+	private int[] GetSelectedNormals(out Vector2[] selectedNormals) {
+		selectedNormals = new Vector2[_selection.Count];
+		int[] indices = new int[_selection.Count];
+		int i = 0;
+		foreach (int index in _selection) {
+			indices[i] = index;
+			selectedNormals[i] = _shape2D.normals[index];
+			i++;
+		}
+		return indices;
 	}
 
 	private Vector2 NormalToHandle(Vector2 normal, Vector2 associatedPoint) {
