@@ -27,6 +27,7 @@ public class Shape2DWindow : EditorWindow {
 	
 	private HashSet<int> _selection = new HashSet<int>();
 	private Vector2 _selectionStart;
+	private bool _selectionDragged;
 
 	private Vector2[] points;
 	private Vector2[] normalHandles;
@@ -180,10 +181,18 @@ public class Shape2DWindow : EditorWindow {
 		float pointRadius = _cursorRectScale * _pointRadius;
 		for (int i = 0; i < points.Length; i++) {
 			Rect rect = new Rect(points[i].x - pointRadius, points[i].y - pointRadius, 2 * pointRadius, 2 * pointRadius);
+			Vector2 savedPosition = points[i];
 			HandleEvents(ref points[i], rect, i);
 			if (_selection.Contains(i)) {
 				Handles.color = Color.red;
 				Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
+			}
+
+			// Moves all the selected points
+			if (savedPosition != points[i] && _selection.Count > 1) {
+				foreach (int index in _selection)
+					if (index != i)
+						points[index] += points[i] - savedPosition;
 			}
 		}
 	}
@@ -207,28 +216,35 @@ public class Shape2DWindow : EditorWindow {
 		switch (current.GetTypeForControl(pointID)) {
 			case EventType.MouseDown:
 				if (area.Contains(current.mousePosition) && current.button == 0) {
-					if (current.alt) {
+					if (current.alt)
 						_selection.Remove(index);
-					}
+					else if (current.control)
+						_selection.Add(index);
 					else {
-						if (!current.control) {
-							GUIUtility.hotControl = pointID;
+						if (_selection.Count <= 1)
 							_selection.Clear();
-						}
+						_selectionDragged = false;
+						GUIUtility.hotControl = pointID;
 						_selection.Add(index);
 					}
 					current.Use();
 				}
 				break;
 			case EventType.MouseUp:
-				if (GUIUtility.hotControl == pointID && current.button == 0)
+				if (GUIUtility.hotControl == pointID && current.button == 0) {
 					GUIUtility.hotControl = 0;
+					if (!current.control && _selection.Count > 1 && !_selectionDragged) {
+						_selection.Clear();
+						_selection.Add(index);
+					}
+					current.Use();
+				}
 				break;
 			case EventType.MouseDrag:
 				if (GUIUtility.hotControl == pointID) {
 					point = current.mousePosition;
+					_selectionDragged = true;
 					current.Use();
-					GUI.changed = true;
 				}
 				break;
 		}
