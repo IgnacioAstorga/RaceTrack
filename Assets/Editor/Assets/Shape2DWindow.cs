@@ -86,7 +86,7 @@ public class Shape2DWindow : EditorWindow {
 
 		// Draws the lines
 		for (int i = 0; i < _shape2D.lines.Length - 1; i += 2)
-			DrawLine(points[_shape2D.lines[i]], points[_shape2D.lines[i + 1]], _lineWidth, Color.red);
+			DrawLine(points[_shape2D.lines[i]], points[_shape2D.lines[i + 1]], _lineWidth, Color.blue);
 
 		// Draws the points
 		for (int i = 0; i < points.Length; i++) {
@@ -190,7 +190,7 @@ public class Shape2DWindow : EditorWindow {
 			Rect rect = new Rect(points[i].x - pointRadius, points[i].y - pointRadius, 2 * pointRadius, 2 * pointRadius);
 			HandleEvents(ref points[i], rect, i);
 			if (_selection.Contains(i)) {
-				Handles.color = Color.green;
+				Handles.color = Color.cyan;
 				Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
 			}
 		}
@@ -203,7 +203,7 @@ public class Shape2DWindow : EditorWindow {
 			Rect rect = new Rect(normalHandles[i].x - handleRadius, normalHandles[i].y - handleRadius, 2 * handleRadius, 2 * handleRadius);
 			HandleEvents(ref normalHandles[i], rect, i);
 			if (_selection.Contains(i)) {
-				Handles.color = Color.green;
+				Handles.color = Color.cyan;
 				Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
 			}
 		}
@@ -279,14 +279,27 @@ public class Shape2DWindow : EditorWindow {
 		// Select Events
 		int selectID = GUIUtility.GetControlID("Select".GetHashCode(), FocusType.Passive);
 		if (GUIUtility.hotControl == selectID) {
+			// Draw selection rectangle
 			Rect rect = new Rect();
 			rect = rect.FromPoints(_selectionStart, current.mousePosition);
-			Color faceColor = Color.blue;
-			faceColor.a = 0.1f;
-			Color outlineColor = Color.blue;
-			outlineColor.a = 0.25f;
+			Color faceColor = new Color(0, 0, 1, 0.1f);
+			Color outlineColor = new Color(0, 0, 1, 0.25f);
 			Handles.color = Color.white;
 			Handles.DrawSolidRectangleWithOutline(rect, faceColor, outlineColor);
+		}
+		else if (_selection.Count >= 2) {
+			// Draw selection bounding box
+			List<Vector2> selectedPoints = new List<Vector2>();
+			foreach (int index in _selection)
+				selectedPoints.Add(points[index]);
+			Rect rect = new Rect();
+			rect = rect.FromPoints(selectedPoints);
+			rect = rect.Expand(5);
+			Color faceColor = new Color(0.25f, 0.25f, 0.25f, 0.1f);
+			Color outlineColor = new Color(0.25f, 0.25f, 0.25f, 0.25f);
+			Handles.color = Color.white;
+			Handles.DrawSolidRectangleWithOutline(rect, faceColor, outlineColor);
+
 		}
 		switch (current.GetTypeForControl(selectID)) {
 			case EventType.MouseDown:
