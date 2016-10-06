@@ -59,4 +59,12 @@ public class Shape2D : ScriptableObject {
 				newUs.Add(us[i]);
 		us = newUs.ToArray();
 	}
+
+	public void CreateLine(int startIndex, int endIndex) {
+		int[] newLines = new int[lines.Length + 2];
+		Array.Copy(lines, newLines, lines.Length);
+		newLines[lines.Length] = startIndex;
+		newLines[lines.Length + 1] = endIndex;
+		lines = newLines;
+	}
 }

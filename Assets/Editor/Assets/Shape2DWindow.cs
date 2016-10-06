@@ -99,9 +99,6 @@ public class Shape2DWindow : EditorWindow {
 			EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
 		}
 
-		// Handles the points events
-		HandlePointsEvents();
-
 		// Draws the normals
 		for (int i = 0; i < _shape2D.normals.Length; i++) {
 			Vector2 normalOrigin = _shape2D.normals[i].normalized * _pointRadius;
@@ -112,6 +109,9 @@ public class Shape2DWindow : EditorWindow {
 			Rect rect = DrawPoint(normalHandles[i], _pointRadius * _normalHandleSize, Color.cyan);
 			EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
 		}
+
+		// Handles the points events
+		HandlePointsEvents();
 
 		// Handles the normals evenets
 		HandleNormalsEvents();
@@ -194,27 +194,24 @@ public class Shape2DWindow : EditorWindow {
 		float pointRadius = _cursorRectScale * _pointRadius;
 		for (int i = 0; i < points.Length; i++) {
 			Rect rect = new Rect(points[i].x - pointRadius, points[i].y - pointRadius, 2 * pointRadius, 2 * pointRadius);
-			Vector2 savedPosition = points[i];
-			points[i] = HandleEvents(points[i], rect, i);
+			Vector2 newPoint = HandleEvents(points[i], rect, i);
 			if (_selection.Contains(i)) {
 				Handles.color = Color.red;
 				Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
 			}
 
 			// Moves all the selected points
-			if (savedPosition != points[i] && _selection.Count > 1) {
-				Vector2 movement = points[i] - savedPosition;
-				foreach (int index in _selection) {
-					normalHandles[i] += movement;
-					if (index != i)
-						points[index] += movement;
-				}
+			if (points[i] != newPoint) {
+				Vector2 movement = newPoint - points[i];
+				foreach (int index in _selection)
+					points[index] += movement;
 			}
 		}
+		TransformNormals();
 	}
 
 	private void HandleNormalsEvents() {
-		// Normal evenets
+		// Normal events
 		float handleRadius = _cursorRectScale * _pointRadius * _normalHandleSize;
 		for (int i = 0; i < normalHandles.Length; i++) {
 			Rect rect = new Rect(normalHandles[i].x - handleRadius, normalHandles[i].y - handleRadius, 2 * handleRadius, 2 * handleRadius);
@@ -223,13 +220,6 @@ public class Shape2DWindow : EditorWindow {
 			if (_selection.Contains(i)) {
 				Handles.color = Color.red;
 				Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
-			}
-
-			// Moves all the selected points
-			if (savedHandle != normalHandles[i] && _selection.Count > 1) {
-				foreach (int index in _selection)
-					if (index != i)
-						normalHandles[index] += normalHandles[i] - savedHandle;
 			}
 		}
 	}
@@ -246,7 +236,7 @@ public class Shape2DWindow : EditorWindow {
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
 						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Shrink selected points into this one"), false, ShrinkPoints, point);
-						//menu.AddItem(new GUIContent("Merge selected points into this one"), false, MergePoints, point);
+						menu.AddItem(new GUIContent("Merge selected points into this one"), false, MergePoints, index);
 					}
 					menu.ShowAsContext();
 					current.Use();
@@ -296,7 +286,7 @@ public class Shape2DWindow : EditorWindow {
 	private void ShrinkSelectedPoints() {
 		Vector2 avg = Vector2.zero;
 		foreach (int index in _selection)
-			avg += points[index];
+			avg += _shape2D.points[index];
 		avg /= _selection.Count;
 		ShrinkPoints(avg);
 	}
@@ -314,6 +304,61 @@ public class Shape2DWindow : EditorWindow {
 		catch (Exception e) {
 			Debug.LogError("ERROR: Invalid point: " + point + "\n" + e);
 		}
+	}
+
+	private void MergeSelectedPoints() {
+		Vector2 avg = Vector2.zero;
+		Vector2 normal = Vector2.zero;
+		foreach (int index in _selection) {
+			avg += _shape2D.points[index];
+			normal += _shape2D.normals[index];
+		}
+		avg /= _selection.Count;
+		MergePoints(avg, normal);
+	}
+
+	private void MergePoints(object pointIndex) {
+		try {
+			int index = Convert.ToInt32(pointIndex);
+			MergePoints(_shape2D.points[index], _shape2D.normals[index]);
+		}
+		catch (Exception e) {
+			Debug.LogError("ERROR: Invalid point index: " + pointIndex + "\n" + e);
+		}
+	}
+
+	private void MergePoints(Vector2 point, Vector2 normal) {
+		// Stores the lines to the selected points
+		List<int> lineOrigins = new List<int>();
+		for (int i = 0; i < _shape2D.lines.Length; i += 2) {
+			if (_selection.Contains(_shape2D.lines[i]) && !_selection.Contains(_shape2D.lines[i + 1]))
+				lineOrigins.Add(i + 1);
+			else if (!_selection.Contains(_shape2D.lines[i]) && _selection.Contains(_shape2D.lines[i + 1]))
+				lineOrigins.Add(i);
+		}
+		foreach (int index in _selection)
+			for (int i = 0; i < lineOrigins.Count; i++)
+				if (lineOrigins[i] >= index)
+					lineOrigins[i] -= 1;
+
+		// Removes any selected point
+		DeleteSelectedPoints();
+
+		// Creates a new point and sets it's normal
+		_shape2D.AddPoint(point);
+		int pointIndex = _shape2D.points.Length - 1;
+		_shape2D.normals[pointIndex] = normal;
+
+		// Recreates the lines
+		foreach (int lineOrigin in lineOrigins)
+			_shape2D.CreateLine(lineOrigin, pointIndex);
+
+		// Reloads the points and normals
+		TransformPoints();
+		TransformNormals();
+
+		// Selects the new point
+		_selection.Add(pointIndex);
 	}
 
 	private void CreatePoint(object position) {
@@ -384,7 +429,7 @@ public class Shape2DWindow : EditorWindow {
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
 						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Shrink selected points"), false, ShrinkSelectedPoints);
-						//menu.AddItem(new GUIContent("Merge selected points"), false, MergeSelectedPoints);
+						menu.AddItem(new GUIContent("Merge selected points"), false, MergeSelectedPoints);
 					}
 					menu.ShowAsContext();
 					current.Use();
