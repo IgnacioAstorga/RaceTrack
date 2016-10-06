@@ -291,9 +291,16 @@ public class Shape2DWindow : EditorWindow {
 
 	private void CreatePoint(object position) {
 		try {
+			// Creates the point
 			_shape2D.AddPoint(ScreenToPoint((Vector2)position));
+
+			// Reloads the points and normals
 			TransformPoints();
 			TransformNormals();
+
+			// Selects the point
+			_selection.Clear();
+			_selection.Add(points.Length);
 		}
 		catch (Exception e) {
 			Debug.LogError("ERROR: Invalid position: " + position + "\n" + e);
@@ -302,11 +309,26 @@ public class Shape2DWindow : EditorWindow {
 
 	private void DeletePoint(object pointIndex) {
 		try {
+			// Deletes the point
 			int index = Convert.ToInt32(pointIndex);
 			_shape2D.DeletePoint(index);
-			_selection.Remove(index);
+
+			// Reloads the points and normals
 			TransformPoints();
 			TransformNormals();
+
+			// Removes the point from the selection and updates all the indices
+			_selection.Remove(index);
+			if (HasSelection) {
+				int[] selectionCopy = new int[_selection.Count];
+				_selection.CopyTo(selectionCopy);
+				_selection.Clear();
+				for (int i = 0; i < selectionCopy.Length; i++) {
+					if (selectionCopy[i] > index)
+						selectionCopy[i] -= 1;
+					_selection.Add(selectionCopy[i]);
+				}
+			}
 		}
 		catch (Exception e) {
 			Debug.LogError("ERROR: Invalid point index: " + pointIndex + "\n" + e);
@@ -316,7 +338,6 @@ public class Shape2DWindow : EditorWindow {
 	private void DeleteSelectedPoints() {
 		int[] selectionCopy = new int[_selection.Count];
 		_selection.CopyTo(selectionCopy);
-		Array.Sort(selectionCopy);
 		for (int i = selectionCopy.Length - 1; i >= 0; i--)
 			DeletePoint(selectionCopy[i]);
 	}
