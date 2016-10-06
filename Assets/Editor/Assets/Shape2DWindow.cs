@@ -9,9 +9,10 @@ public class Shape2DWindow : EditorWindow {
 	private Rect CurrentArea { get { return _areas.Peek(); } }
 
 	private float _scale = 100;
+	private float _oldScale;
 	private float _fixedScale = 100;
 	private Vector2 _offset = Vector2.zero;
-	private Vector2 _oldOffset = Vector2.zero;
+	private Vector2 _oldOffset;
 
 	private float _pointRadius = 5f;
 	private float _lineWidth = 5f;
@@ -24,6 +25,7 @@ public class Shape2DWindow : EditorWindow {
 	private float _selectedPanelHeight = 80f;
 
 	private Stack<Rect> _areas = new Stack<Rect>();
+	private Rect _mainAreaRect;
 
 	private Shape2D _shape2D;
 	
@@ -75,13 +77,17 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	private void DrawMainPanel() {
-		BeginArea(new Rect(0, _shapeSelectorHeight, CurrentArea.width, CurrentArea.height - _shapeSelectorHeight));
+		_mainAreaRect = new Rect(0, _shapeSelectorHeight, CurrentArea.width, CurrentArea.height - _shapeSelectorHeight);
+		BeginArea(_mainAreaRect);
+
+		// Saves the offset and scale values
+		_oldOffset = _offset;
+		_oldScale = _scale;
 
 		// Draws the background
 		DrawBackground(_scale);
 
 		// Transforms the points
-		_oldOffset = _offset;
 		points.Clear();
 		for (int i = 0; i < _shape2D.points.Length; i++) {
 			points.Insert(i, _shape2D.points[i] * _scale);
@@ -279,45 +285,27 @@ public class Shape2DWindow : EditorWindow {
 		return point;
 	}
 
-	private void DeletePoint(int pointIndex) {
-		List<Vector2> points = new List<Vector2>();
-		for (int i = 0; i < _shape2D.points.Length; i++)
-			if (i != pointIndex)
-				points.Add(_shape2D.points[i]);
-		_shape2D.points = points.ToArray();
-
-		List<Vector2> normals = new List<Vector2>();
-		for (int i = 0; i < _shape2D.normals.Length; i++)
-			if (i != pointIndex)
-				normals.Add(_shape2D.normals[i]);
-		_shape2D.normals = normals.ToArray();
-
-		List<int> lines = new List<int>();
-		for (int i = 0; i < _shape2D.lines.Length; i += 2) {
-			if (_shape2D.lines[i] != pointIndex && _shape2D.lines[i + 1] != pointIndex) {
-				if (_shape2D.lines[i] >= pointIndex)
-					_shape2D.lines[i] -= 1;
-				if (_shape2D.lines[i + 1] >= pointIndex)
-					_shape2D.lines[i + 1] -= 1;
-				lines.Add(_shape2D.lines[i]);
-				lines.Add(_shape2D.lines[i + 1]);
-			}
+	private void CreatePoint(object position) {
+		try {
+			Vector2 point = (Vector2)position;
+			point -= _mainAreaRect.size / 2 + _oldOffset;
+			point.y *= -1;
+			point /= _oldScale;
+			_shape2D.AddPoint(point);
 		}
-		_shape2D.lines = lines.ToArray();
-
-		List<float> us = new List<float>();
-		for (int i = 0; i < _shape2D.us.Length; i++)
-			if (i != pointIndex)
-				us.Add(_shape2D.us[i]);
-		_shape2D.us = us.ToArray();
+		catch (Exception e) {
+			Debug.LogError("ERROR: Invalid position: " + position + "\n" + e);
+		}
 	}
 
 	private void DeletePoint(object pointIndex) {
 		try {
-			DeletePoint(Convert.ToInt32(pointIndex));
+			int index = Convert.ToInt32(pointIndex);
+			_shape2D.DeletePoint(index);
+			_selection.Remove(index);
 		}
 		catch (Exception e) {
-			Debug.LogError("ERROR: Invalid point index: " + e);
+			Debug.LogError("ERROR: Invalid point index: " + pointIndex + "\n" + e);
 		}
 	}
 
@@ -327,7 +315,6 @@ public class Shape2DWindow : EditorWindow {
 		Array.Sort(selectionCopy);
 		for (int i = selectionCopy.Length - 1; i >= 0; i--)
 			DeletePoint(selectionCopy[i]);
-		_selection.Clear();
 	}
 
 	private void HandleMouseEvents(Rect area) {
@@ -341,11 +328,11 @@ public class Shape2DWindow : EditorWindow {
 		switch (current.GetTypeForControl(dragID)) {
 			case EventType.ContextClick:
 				if (area.Contains(current.mousePosition)) {
-					if (_selection.Count > 1) {
-						GenericMenu menu = new GenericMenu();
+					GenericMenu menu = new GenericMenu();
+					menu.AddItem(new GUIContent("Create point"), false, CreatePoint, current.mousePosition);
+					if (_selection.Count > 1)
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
-						menu.ShowAsContext();
-					}
+					menu.ShowAsContext();
 					current.Use();
 				}
 				break;
@@ -548,7 +535,7 @@ public class Shape2DWindow : EditorWindow {
 		for (int i = 0; i < points.Count; i++) {
 			Vector2 point = points[i] - CurrentArea.size / 2 - _oldOffset;
 			point.y *= -1;
-			_shape2D.points[i] = point / _scale;
+			_shape2D.points[i] = point / _oldScale;
 		}
 	}
 }
