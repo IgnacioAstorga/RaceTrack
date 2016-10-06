@@ -242,8 +242,12 @@ public class Shape2DWindow : EditorWindow {
 				if (area.Contains(current.mousePosition)) {
 					GenericMenu menu = new GenericMenu();
 					menu.AddItem(new GUIContent("Delete point"), false, DeletePoint, index);
-					if (_selection.Count > 1)
+					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
+						menu.AddSeparator("");
+						menu.AddItem(new GUIContent("Shrink selected points into this one"), false, ShrinkPoints, point);
+						//menu.AddItem(new GUIContent("Merge selected points into this one"), false, MergePoints, point);
+					}
 					menu.ShowAsContext();
 					current.Use();
 				}
@@ -287,6 +291,29 @@ public class Shape2DWindow : EditorWindow {
 				break;
 		}
 		return point;
+	}
+
+	private void ShrinkSelectedPoints() {
+		Vector2 avg = Vector2.zero;
+		foreach (int index in _selection)
+			avg += points[index];
+		avg /= _selection.Count;
+		ShrinkPoints(avg);
+	}
+
+	private void ShrinkPoints(object point) {
+		try {
+			Vector2 pointCoordinates = ScreenToPoint((Vector2)point);
+			foreach (int index in _selection)
+				_shape2D.points[index] = pointCoordinates;
+
+			// Reloads the points and normals
+			TransformPoints();
+			TransformNormals();
+		}
+		catch (Exception e) {
+			Debug.LogError("ERROR: Invalid point: " + point + "\n" + e);
+		}
 	}
 
 	private void CreatePoint(object position) {
@@ -353,8 +380,12 @@ public class Shape2DWindow : EditorWindow {
 				if (area.Contains(current.mousePosition)) {
 					GenericMenu menu = new GenericMenu();
 					menu.AddItem(new GUIContent("Create point"), false, CreatePoint, current.mousePosition);
-					if (_selection.Count > 1)
+					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
+						menu.AddSeparator("");
+						menu.AddItem(new GUIContent("Shrink selected points"), false, ShrinkSelectedPoints);
+						//menu.AddItem(new GUIContent("Merge selected points"), false, MergeSelectedPoints);
+					}
 					menu.ShowAsContext();
 					current.Use();
 				}
