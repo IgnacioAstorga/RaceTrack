@@ -33,9 +33,6 @@ public class Shape2DWindow : EditorWindow {
 	private Vector2 _selectionStart;
 	private bool _selectionDragged;
 
-	private Vector2[] points;
-	private Vector2[] normalHandles;
-
 	[MenuItem("Window/Shape 2D Editor")]
 	public static void ShowWindow() {
 		GetWindow<Shape2DWindow>("Shape 2D Editor");
@@ -46,6 +43,7 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	void OnGUI() {
+		// Resets the drawing area
 		_areas.Clear();
 		_areas.Push(position);
 
@@ -57,8 +55,13 @@ public class Shape2DWindow : EditorWindow {
 			LoadShape2D((Shape2D)Selection.activeObject);
 
 		// Draw Shape & Handle Events
-		if (_shape2D != null)
+		if (_shape2D != null) {
+			// Records an Undo command
+			Undo.RecordObject(_shape2D, "Modify Shape2D");
+
+			// Draws the main panel
 			DrawMainPanel();
+		}
 
 		Repaint();
 	}
@@ -83,19 +86,17 @@ public class Shape2DWindow : EditorWindow {
 		// Saves the offset and scale values. Transforms the values
 		_oldOffset = _offset;
 		_oldScale = _scale;
-		TransformPoints();
-		TransformNormals();
 
 		// Draws the background
 		DrawBackground(_scale);
 
 		// Draws the lines
 		for (int i = 0; i < _shape2D.lines.Length - 1; i += 2)
-			DrawLine(points[_shape2D.lines[i]], points[_shape2D.lines[i + 1]], _lineWidth, Color.blue);
+			DrawLine(PointToScreen(_shape2D.points[_shape2D.lines[i]]), PointToScreen(_shape2D.points[_shape2D.lines[i + 1]]), _lineWidth, Color.blue);
 
 		// Draws the points
-		for (int i = 0; i < points.Length; i++) {
-			Rect rect = DrawPoint(points[i], _pointRadius, Color.white);
+		for (int i = 0; i < _shape2D.points.Length; i++) {
+			Rect rect = DrawPoint(PointToScreen(_shape2D.points[i]), _pointRadius, Color.white);
 			EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
 		}
 
@@ -103,10 +104,11 @@ public class Shape2DWindow : EditorWindow {
 		for (int i = 0; i < _shape2D.normals.Length; i++) {
 			Vector2 normalOrigin = _shape2D.normals[i].normalized * _pointRadius;
 			normalOrigin.y *= -1;
-			normalOrigin += points[i];
+			normalOrigin += PointToScreen(_shape2D.points[i]);
 
-			DrawLine(normalOrigin, normalHandles[i], _lineWidth * _normalHandleSize, Color.cyan);
-			Rect rect = DrawPoint(normalHandles[i], _pointRadius * _normalHandleSize, Color.cyan);
+			Vector2 handle = NormalToHandle(_shape2D.normals[i], _shape2D.points[i]);
+			DrawLine(normalOrigin, handle, _lineWidth * _normalHandleSize, Color.cyan);
+			Rect rect = DrawPoint(handle, _pointRadius * _normalHandleSize, Color.cyan);
 			EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
 		}
 
@@ -123,22 +125,7 @@ public class Shape2DWindow : EditorWindow {
 		HandleMouseEvents(CurrentArea);
 		HandleKeyboardEvents();
 
-		// Saves the changes to the shape
-		SaveChanges();
-
 		EndArea();
-	}
-
-	private void TransformPoints() {
-		points = new Vector2[_shape2D.points.Length];
-		for (int i = 0; i < _shape2D.points.Length; i++)
-			points[i] = PointToScreen(_shape2D.points[i]);
-	}
-
-	private void TransformNormals() {
-		normalHandles = new Vector2[_shape2D.normals.Length];
-		for (int i = 0; i < _shape2D.normals.Length; i++)
-			normalHandles[i] = NormalToHandle(_shape2D.normals[i], points[i]);
 	}
 
 	private void DrawBackground(float scale) {
@@ -192,31 +179,34 @@ public class Shape2DWindow : EditorWindow {
 	private void HandlePointsEvents() {
 		// Points events
 		float pointRadius = _cursorRectScale * _pointRadius;
-		for (int i = 0; i < points.Length; i++) {
-			Rect rect = new Rect(points[i].x - pointRadius, points[i].y - pointRadius, 2 * pointRadius, 2 * pointRadius);
-			Vector2 newPoint = HandleEvents(points[i], rect, i);
+		for (int i = 0; i < _shape2D.points.Length; i++) {
+			Vector2 point = PointToScreen(_shape2D.points[i]);
+			Rect rect = new Rect(point.x - pointRadius, point.y - pointRadius, 2 * pointRadius, 2 * pointRadius);
+			Vector2 newPoint = HandleEvents(point, rect, i);
 			if (_selection.Contains(i)) {
 				Handles.color = Color.red;
 				Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
 			}
 
 			// Moves all the selected points
-			if (points[i] != newPoint) {
-				Vector2 movement = newPoint - points[i];
+			if (point != newPoint) {
+				Vector2 previousPosition = _shape2D.points[i];
+				_shape2D.points[i] = ScreenToPoint(newPoint);
+				Vector2 movement = _shape2D.points[i] - previousPosition;
 				foreach (int index in _selection)
-					points[index] += movement;
+					if (i != index)
+						_shape2D.points[index] += movement;
 			}
 		}
-		TransformNormals();
 	}
 
 	private void HandleNormalsEvents() {
 		// Normal events
 		float handleRadius = _cursorRectScale * _pointRadius * _normalHandleSize;
-		for (int i = 0; i < normalHandles.Length; i++) {
-			Rect rect = new Rect(normalHandles[i].x - handleRadius, normalHandles[i].y - handleRadius, 2 * handleRadius, 2 * handleRadius);
-			Vector2 savedHandle = normalHandles[i];
-			normalHandles[i] = HandleEvents(normalHandles[i], rect, i);
+		for (int i = 0; i < _shape2D.normals.Length; i++) {
+			Vector2 handle = NormalToHandle(_shape2D.normals[i], _shape2D.points[i]);
+			Rect rect = new Rect(handle.x - handleRadius, handle.y - handleRadius, 2 * handleRadius, 2 * handleRadius);
+			_shape2D.normals[i] = HandleToNormal(HandleEvents(handle, rect, i), _shape2D.points[i]);
 			if (_selection.Contains(i)) {
 				Handles.color = Color.red;
 				Handles.DrawWireDisc(rect.center, Vector3.forward, rect.width / 2);
@@ -296,10 +286,6 @@ public class Shape2DWindow : EditorWindow {
 			Vector2 pointCoordinates = ScreenToPoint((Vector2)point);
 			foreach (int index in _selection)
 				_shape2D.points[index] = pointCoordinates;
-
-			// Reloads the points and normals
-			TransformPoints();
-			TransformNormals();
 		}
 		catch (Exception e) {
 			Debug.LogError("ERROR: Invalid point: " + point + "\n" + e);
@@ -353,10 +339,6 @@ public class Shape2DWindow : EditorWindow {
 		foreach (int lineOrigin in lineOrigins)
 			_shape2D.CreateLine(lineOrigin, pointIndex);
 
-		// Reloads the points and normals
-		TransformPoints();
-		TransformNormals();
-
 		// Selects the new point
 		_selection.Add(pointIndex);
 	}
@@ -366,13 +348,9 @@ public class Shape2DWindow : EditorWindow {
 			// Creates the point
 			_shape2D.AddPoint(ScreenToPoint((Vector2)position));
 
-			// Reloads the points and normals
-			TransformPoints();
-			TransformNormals();
-
 			// Selects the point
 			_selection.Clear();
-			_selection.Add(points.Length);
+			_selection.Add(_shape2D.points.Length - 1);
 		}
 		catch (Exception e) {
 			Debug.LogError("ERROR: Invalid position: " + position + "\n" + e);
@@ -384,10 +362,6 @@ public class Shape2DWindow : EditorWindow {
 			// Deletes the point
 			int index = Convert.ToInt32(pointIndex);
 			_shape2D.DeletePoint(index);
-
-			// Reloads the points and normals
-			TransformPoints();
-			TransformNormals();
 
 			// Removes the point from the selection and updates all the indices
 			_selection.Remove(index);
@@ -485,8 +459,8 @@ public class Shape2DWindow : EditorWindow {
 					rect = rect.FromPoints(_selectionStart, current.mousePosition);
 					if (!current.alt && !current.control)
 						_selection.Clear();
-					for (int i = 0; i < points.Length; i++) {
-						if (rect.Contains(points[i])) {
+					for (int i = 0; i < _shape2D.points.Length; i++) {
+						if (rect.Contains(PointToScreen(_shape2D.points[i]))) {
 							if (current.alt)
 								_selection.Remove(i);
 							else
@@ -531,10 +505,8 @@ public class Shape2DWindow : EditorWindow {
 		Vector2[] selectedPoints;
 		int[] pointIndices = GetSelectedPoints(out selectedPoints);
 		DrawMultiVector2("Point", ref selectedPoints);
-		for (int i = 0; i < selectedPoints.Length; i++) {
-			normalHandles[pointIndices[i]] += selectedPoints[i] - points[pointIndices[i]];
-			points[pointIndices[i]] = selectedPoints[i];
-		}
+		for (int i = 0; i < selectedPoints.Length; i++)
+			_shape2D.points[pointIndices[i]] = selectedPoints[i];
 		
 		// Draws the normal field
 		Vector2[] selectedNormals;
@@ -606,7 +578,7 @@ public class Shape2DWindow : EditorWindow {
 		int i = 0;
 		foreach (int index in _selection) {
 			indices[i] = index;
-			selectedPoints[i] = points[index];
+			selectedPoints[i] = _shape2D.points[index];
 			i++;
 		}
 		return indices;
@@ -641,29 +613,14 @@ public class Shape2DWindow : EditorWindow {
 	private Vector2 NormalToHandle(Vector2 normal, Vector2 associatedPoint) {
 		Vector2 handle = normal * _normalLength * _fixedScale;
 		handle.y *= -1;
-		handle += associatedPoint;
+		handle += PointToScreen(associatedPoint);
 		return handle;
 	}
 
 	private Vector2 HandleToNormal(Vector2 handle, Vector2 associatedPoint) {
 		Vector2 normal = handle;
-		normal -= associatedPoint;
+		normal -= PointToScreen(associatedPoint);
 		normal.y *= -1;
 		return normal.normalized;
-	}
-
-	private void SaveChanges() {
-		// Records an Undo command
-		Undo.RecordObject(_shape2D, "Modify Shape2D");
-
-		// Saves the normals
-		_shape2D.normals = new Vector2[normalHandles.Length];
-		for (int i = 0; i < normalHandles.Length; i++)
-			_shape2D.normals[i] = HandleToNormal(normalHandles[i], points[i]);
-
-		// Saves the points
-		_shape2D.points = new Vector2[points.Length];
-		for (int i = 0; i < points.Length; i++)
-			_shape2D.points[i] = ScreenToPoint(points[i]);
 	}
 }
