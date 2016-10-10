@@ -318,13 +318,13 @@ public class Shape2DWindow : EditorWindow {
 		List<int> lineOrigins = new List<int>();
 		for (int i = 0; i < _shape2D.lines.Length; i += 2) {
 			if (_selection.Contains(_shape2D.lines[i]) && !_selection.Contains(_shape2D.lines[i + 1]))
-				lineOrigins.Add(i + 1);
-			else if (!_selection.Contains(_shape2D.lines[i]) && _selection.Contains(_shape2D.lines[i + 1]))
-				lineOrigins.Add(i);
+				lineOrigins.Add(_shape2D.lines[i + 1]);
+			if (!_selection.Contains(_shape2D.lines[i]) && _selection.Contains(_shape2D.lines[i + 1]))
+				lineOrigins.Add(_shape2D.lines[i]);
 		}
 		foreach (int index in _selection)
 			for (int i = 0; i < lineOrigins.Count; i++)
-				if (lineOrigins[i] >= index)
+				if (lineOrigins[i] > index)
 					lineOrigins[i] -= 1;
 
 		// Removes any selected point
@@ -384,6 +384,7 @@ public class Shape2DWindow : EditorWindow {
 	private void DeleteSelectedPoints() {
 		int[] selectionCopy = new int[_selection.Count];
 		_selection.CopyTo(selectionCopy);
+		Array.Sort(selectionCopy);
 		for (int i = selectionCopy.Length - 1; i >= 0; i--)
 			DeletePoint(selectionCopy[i]);
 	}
