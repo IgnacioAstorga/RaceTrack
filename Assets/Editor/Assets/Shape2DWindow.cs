@@ -127,7 +127,7 @@ public class Shape2DWindow : EditorWindow {
 		_oldScale = _scale;
 
 		// Draws the background
-		DrawBackground(_scale);
+		DrawBackground(_oldScale);
 
 		// Draws the lines
 		for (int i = 0; i < _shape2D.lines.Length - 1; i += 2)
@@ -170,7 +170,7 @@ public class Shape2DWindow : EditorWindow {
 	private void DrawBackground(float scale) {
 		while (scale > _fixedScale)
 			scale /= 2;
-		Vector2 origin = CurrentArea.size / 2 + _offset.Module(scale);
+		Vector2 origin = CurrentArea.size / 2 + _oldOffset.Module(scale);
 
 		// Draws the horizontal grid
 		for (float x = 0; x < CurrentArea.width / 2; x += scale) {
@@ -187,7 +187,7 @@ public class Shape2DWindow : EditorWindow {
 		}
 
 		// Draws the main axis
-		Vector2 center = CurrentArea.size / 2 + _offset;
+		Vector2 center = CurrentArea.size / 2 + _oldOffset;
 		Handles.color = Color.red;
 		Handles.DrawLine(new Vector2(0, center.y), new Vector2(CurrentArea.width, center.y));
 		Handles.color = Color.green;
@@ -486,7 +486,7 @@ public class Shape2DWindow : EditorWindow {
 				}
 				break;
 			case EventType.ScrollWheel:
-				_scale = Mathf.Min(600, Mathf.Max(1, _scale - current.delta.y * _scale / 60));
+				_scale = Mathf.Min(600, Mathf.Max(1, _oldScale - current.delta.y * _oldScale / 60));
 				break;
 		}
 
@@ -658,7 +658,7 @@ public class Shape2DWindow : EditorWindow {
 	private Vector2 PointToScreen(Vector2 point) {
 		point *= _oldScale;
 		point.y *= -1;
-		point += _mainAreaRect.size / 2 + _offset;
+		point += _mainAreaRect.size / 2 + _oldOffset;
 		return point;
 	}
 
