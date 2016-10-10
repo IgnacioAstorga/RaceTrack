@@ -91,12 +91,18 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	private void DrawUpperRibbon() {
+		// Draws the points buttons
 		EditorGUILayout.BeginHorizontal();
-
-		// Draws the buttons
 		if (GUILayout.Button("Add point"))
-			CreatePoint(_mainAreaRect.center);
-
+			CreatePoint(_mainAreaRect.center - Vector2.up * (_shapeSelectorHeight + _upperRibbonHeight));
+		GUI.enabled = HasSelection;
+		if (GUILayout.Button("Remove selected points"))
+			DeleteSelectedPoints();
+		if (GUILayout.Button("Shrink selected points"))
+			ShrinkSelectedPoints();
+		if (GUILayout.Button("Merge selected points"))
+			MergeSelectedPoints();
+		GUI.enabled = true;
 		EditorGUILayout.EndHorizontal();
 	}
 
@@ -133,9 +139,6 @@ public class Shape2DWindow : EditorWindow {
 			EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
 		}
 
-		// Draws the selected object information
-		DrawSelected();
-
 		// Handles the points events
 		HandlePointsEvents();
 
@@ -145,6 +148,9 @@ public class Shape2DWindow : EditorWindow {
 		// Manages the mouse and keyboard events
 		HandleMouseEvents(new Rect(0, 0, CurrentArea.width, CurrentArea.height - (HasSelection ? _selectedPanelHeight : 0)));
 		HandleKeyboardEvents();
+
+		// Draws the selected object information
+		DrawSelected();
 
 		EndArea();
 	}
@@ -299,7 +305,7 @@ public class Shape2DWindow : EditorWindow {
 		foreach (int index in _selection)
 			avg += _shape2D.points[index];
 		avg /= _selection.Count;
-		ShrinkPoints(avg);
+		ShrinkPoints(PointToScreen(avg));
 	}
 
 	private void ShrinkPoints(object point) {
