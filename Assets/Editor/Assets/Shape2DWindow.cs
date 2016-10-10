@@ -14,6 +14,7 @@ public class Shape2DWindow : EditorWindow {
 	private float _fixedScale = 100;
 	private Vector2 _offset = Vector2.zero;
 	private Vector2 _oldOffset;
+	private Vector2 _pointListScroll = Vector2.zero;
 
 	private float _pointRadius = 5f;
 	private float _lineWidth = 5f;
@@ -24,6 +25,7 @@ public class Shape2DWindow : EditorWindow {
 
 	private float _shapeSelectorHeight = 20f;
 	private float _upperRibbonHeight = 20f;
+	private float _pointsListWidth = 120f;
 	private float _selectedPanelHeight = 80f;
 	private float _selectedPanelWidth = 120f;
 
@@ -67,6 +69,9 @@ public class Shape2DWindow : EditorWindow {
 
 			// Draws the upper ribbon
 			DrawUpperRibbon();
+
+			// Draws the list of points
+			DrawPointsList();
 
 			// Draws the main panel
 			DrawMainPanel();
@@ -170,6 +175,114 @@ public class Shape2DWindow : EditorWindow {
 		EditorGUILayout.EndHorizontal();
 	}
 
+	private void DrawPointsList() {
+		BeginArea(new Rect(0, _shapeSelectorHeight + _upperRibbonHeight, _pointsListWidth, CurrentArea.height - _shapeSelectorHeight - _upperRibbonHeight));
+
+		float labelWidth = EditorGUIUtility.labelWidth;
+
+		EditorGUILayout.BeginHorizontal(GUI.skin.box);
+		EditorGUILayout.LabelField("Points");
+		EditorGUILayout.EndHorizontal();
+
+		_pointListScroll = EditorGUILayout.BeginScrollView(_pointListScroll, GUI.skin.textArea);
+		EditorGUILayout.BeginVertical();
+		EditorGUIUtility.labelWidth = 15;
+		for (int i = 0; i < _shape2D.points.Length; i++) {
+			Rect rect = EditorGUILayout.BeginHorizontal();
+			if (_selection.Contains(i))
+				EditorGUI.DrawRect(rect, new Color(1f, 0f, 0f, 0.5f));
+			EditorGUILayout.PrefixLabel(i.ToString());
+			_shape2D.points[i] = EditorGUILayout.Vector2Field("", _shape2D.points[i]);
+			EditorGUILayout.EndHorizontal();
+			EditorGUILayout.Separator();
+
+			HandlePointsListEvents(rect, i);
+		}
+		EditorGUILayout.EndScrollView();
+		EditorGUILayout.EndVertical();
+
+		EditorGUIUtility.fieldWidth = labelWidth;
+
+		EndArea();
+	}
+
+	private void HandlePointsListEvents(Rect area, int index) {
+		Vector2 point = PointToScreen(_shape2D.points[index]);
+		int pointListID = GUIUtility.GetControlID("PointList".GetHashCode(), FocusType.Passive);
+		Event current = Event.current;
+		switch (current.GetTypeForControl(pointListID)) {
+			case EventType.ContextClick:
+				if (area.Contains(current.mousePosition)) {
+					GenericMenu menu = new GenericMenu();
+					menu.AddItem(new GUIContent("Delete point"), false, DeletePoint, index);
+					if (_selection.Count <= 1) {
+						menu.AddItem(new GUIContent("Copy point"), false, CopySelection);
+						menu.AddItem(new GUIContent("Cut point"), false, CutSelection);
+					}
+					else if (_selection.Count > 1) {
+						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
+					}
+					menu.AddSeparator("");
+					menu.AddItem(new GUIContent("Recalculate normal"), false, RecalculateNormal, index);
+					if (_selection.Count > 1) {
+						menu.AddItem(new GUIContent("Recalculate selected normals"), false, RecalculateSelectedNormals);
+					}
+					menu.AddSeparator("");
+					menu.AddItem(new GUIContent("Break point"), false, BreakPoint, index);
+					if (_selection.Count > 1) {
+						menu.AddItem(new GUIContent("Break selected points"), false, BreakSelectedPoints);
+						menu.AddItem(new GUIContent("Shrink selected points into this one"), false, ShrinkPoints, point);
+						menu.AddItem(new GUIContent("Merge selected points into this one"), false, MergePoints, index);
+						menu.AddSeparator("");
+						menu.AddItem(new GUIContent("Copy selected points"), false, CopySelection);
+						menu.AddItem(new GUIContent("Cut selected points"), false, CutSelection);
+					}
+					menu.AddSeparator("");
+					if (HasClipboard)
+						menu.AddItem(new GUIContent("Paste copied points here"), false, PasteCopiedPoints, point);
+					else
+						menu.AddDisabledItem(new GUIContent("Paste copied points here"));
+					if (_selection.Count <= 1 && HasClipboard && _clipboardPoints.Length == 1)
+						menu.AddItem(new GUIContent("Paste point coordinates"), false, PastePointCoordinates, index);
+					else
+						menu.AddDisabledItem(new GUIContent("Paste point coordinates"));
+					menu.ShowAsContext();
+					current.Use();
+				}
+				break;
+			case EventType.MouseDown:
+				if (area.Contains(current.mousePosition)) {
+					if (current.button == 0) {
+						if (current.alt)
+							_selection.Remove(index);
+						else if (current.control)
+							_selection.Add(index);
+						else {
+							if (_selection.Count <= 1)
+								_selection.Clear();
+							_selectionDragged = false;
+							GUIUtility.hotControl = pointListID;
+							_selection.Add(index);
+						}
+						current.Use();
+					}
+				}
+				break;
+			case EventType.MouseUp:
+				if (GUIUtility.hotControl == pointListID) {
+					if (current.button == 0) {
+						GUIUtility.hotControl = 0;
+						if (!current.control && _selection.Count > 1 && !_selectionDragged) {
+							_selection.Clear();
+							_selection.Add(index);
+						}
+						current.Use();
+					}
+				}
+				break;
+		}
+	}
+
 	private Vector2 GetScreenCenter() {
 		return _mainAreaRect.center - Vector2.up * (_shapeSelectorHeight + _upperRibbonHeight);
 	}
@@ -179,7 +292,7 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	private void DrawMainPanel() {
-		_mainAreaRect = new Rect(0, _shapeSelectorHeight + _upperRibbonHeight, CurrentArea.width, CurrentArea.height - _shapeSelectorHeight - _upperRibbonHeight);
+		_mainAreaRect = new Rect(_pointsListWidth, _shapeSelectorHeight + _upperRibbonHeight, CurrentArea.width - _pointsListWidth, CurrentArea.height - _shapeSelectorHeight - _upperRibbonHeight);
 		BeginArea(_mainAreaRect);
 		
 		// Saves the offset and scale values. Transforms the values
