@@ -23,8 +23,9 @@ public class Shape2DWindow : EditorWindow {
 	private float _cursorRectScale = 2f;
 
 	private float _shapeSelectorHeight = 20f;
-	private float _upperRibbonHeight = 60f;
+	private float _upperRibbonHeight = 20f;
 	private float _selectedPanelHeight = 80f;
+	private float _selectedPanelWidth = 120f;
 
 	private Stack<Rect> _areas = new Stack<Rect>();
 	private Rect _mainAreaRect;
@@ -96,52 +97,77 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	private void DrawUpperRibbon() {
-		EditorGUILayout.BeginVertical();
-
-		// Draws the first row
 		EditorGUILayout.BeginHorizontal();
-		if (GUILayout.Button("Add point"))
-			CreatePoint(GetScreenCenter());
-		GUI.enabled = HasSelection;
-		if (GUILayout.Button("Remove selected points"))
-			DeleteSelectedPoints();
-		if (GUILayout.Button("Shrink selected points"))
-			ShrinkSelectedPoints();
-		if (GUILayout.Button("Merge selected points"))
-			MergeSelectedPoints();
-		GUI.enabled = true;
-		EditorGUILayout.EndHorizontal();
 
-		// Draws the second row
-		EditorGUILayout.BeginHorizontal();
-		GUI.enabled = HasSelection;
-		if (GUILayout.Button("Focus selected points"))
-			FocusSelection();
-		if (GUILayout.Button("Copy selected points"))
-			CopySelection();
-		if (GUILayout.Button("Cut selected points"))
-			CutSelection();
-		GUI.enabled = HasClipboard;
-		if (GUILayout.Button("Paste copied points"))
-			PasteCopiedPoints(GetScreenCenter());
-		GUI.enabled = true;
-		EditorGUILayout.EndHorizontal();
+		// Edit
+		if (GUILayout.Button("Edit")) {
+			GenericMenu menu = new GenericMenu();
+			if (HasSelection) {
+				menu.AddItem(new GUIContent("Copy selected points"), false, CopySelection);
+				menu.AddItem(new GUIContent("Cut selected points"), false, CutSelection);
+			}
+			else {
+				menu.AddDisabledItem(new GUIContent("Copy selected points"));
+				menu.AddDisabledItem(new GUIContent("Cut selected points"));
+			}
+			if (HasClipboard) {
+				menu.AddItem(new GUIContent("Paste copied points"), false, PasteCopiedPoints, GetScreenCenter());
+			}
+			else {
+				menu.AddDisabledItem(new GUIContent("Paste copied points"));
+			}
+			menu.AddSeparator("");
+			if (HasSelection) {
+				menu.AddItem(new GUIContent("Focus selected points"), false, FocusSelection);
+				menu.AddItem(new GUIContent("Center selection on origin"), false, CenterSelection, PointToScreen(Vector2.zero));
+				menu.AddItem(new GUIContent("Center selection on screen"), false, CenterSelection, GetScreenCenter());
+			}
+			else {
+				menu.AddDisabledItem(new GUIContent("Focus selected points"));
+				menu.AddDisabledItem(new GUIContent("Center selection on origin"));
+				menu.AddDisabledItem(new GUIContent("Center selection on screen"));
+			}
+			menu.ShowAsContext();
+		}
 
-		// Draws the third row
-		EditorGUILayout.BeginHorizontal();
-		if (GUILayout.Button("Recalculate all normals"))
-			RecalculateAllNormals();
-		GUI.enabled = HasSelection;
-		if (GUILayout.Button("Recalculate selected normals"))
-			RecalculateSelectedNormals();
-		if (GUILayout.Button("Center selection on origin"))
-			CenterOnOrigin();
-		if (GUILayout.Button("Break selected points"))
-			BreakSelectedPoints();
-		GUI.enabled = true;
-		EditorGUILayout.EndHorizontal();
+		// Points
+		if (GUILayout.Button("Points")) {
+			GenericMenu menu = new GenericMenu();
+			menu.AddItem(new GUIContent("Create point"), false, CreatePoint, GetScreenCenter());
+			if (HasSelection) {
+				menu.AddItem(new GUIContent("Remove selected points"), false, DeleteSelectedPoints);
+			}
+			else {
+				menu.AddDisabledItem(new GUIContent("Remove selected points"));
+			}
+			menu.AddSeparator("");
+			if (HasSelection) {
+				menu.AddItem(new GUIContent("Shrink selected points"), false, ShrinkSelectedPoints);
+				menu.AddItem(new GUIContent("Merge selected points"), false, MergeSelectedPoints);
+				menu.AddItem(new GUIContent("Break selected points"), false, BreakSelectedPoints);
+			}
+			else {
+				menu.AddDisabledItem(new GUIContent("Shrink selected points"));
+				menu.AddDisabledItem(new GUIContent("Merge selected points"));
+				menu.AddDisabledItem(new GUIContent("Break selected points"));
+			}
+			menu.ShowAsContext();
+		}
 
-		EditorGUILayout.EndVertical();
+		// Normals
+		if (GUILayout.Button("Normals")) {
+			GenericMenu menu = new GenericMenu();
+			menu.AddItem(new GUIContent("Recalculate all normals"), false, RecalculateAllNormals);
+			if (HasSelection) {
+				menu.AddItem(new GUIContent("Recalculate selected normals"), false, RecalculateSelectedNormals);
+			}
+			else {
+				menu.AddDisabledItem(new GUIContent("Recalculate selected normals"));
+			}
+			menu.ShowAsContext();
+		}
+
+		EditorGUILayout.EndHorizontal();
 	}
 
 	private Vector2 GetScreenCenter() {
@@ -149,7 +175,7 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	private Rect GetSelectionRect() {
-		return new Rect(0, 0, CurrentArea.width, CurrentArea.height - (HasSelection ? _selectedPanelHeight : 0));
+		return new Rect(0, 0, CurrentArea.width, CurrentArea.height);
 	}
 
 	private void DrawMainPanel() {
@@ -598,14 +624,20 @@ public class Shape2DWindow : EditorWindow {
 		}
 	}
 
-	private void CenterOnOrigin() {
-		Rect rect = new Rect();
-		Vector2[] selectedPoints;
-		GetSelectedPoints(out selectedPoints);
-		rect = rect.FromPoints(selectedPoints);
-		foreach (int index in _selection)
-			_shape2D.points[index] -= rect.center;
-		FocusSelection();
+	private void CenterSelection(object point) {
+		try {
+			Vector2 reference = ScreenToPoint((Vector2)point);
+			Rect rect = new Rect();
+			Vector2[] selectedPoints;
+			GetSelectedPoints(out selectedPoints);
+			rect = rect.FromPoints(selectedPoints);
+			foreach (int index in _selection)
+				_shape2D.points[index] += reference - rect.center;
+			FocusSelection();
+		}
+		catch (Exception e) {
+			Debug.LogError("ERROR: Invalid point: " + point + "\n" + e);
+		}
 	}
 
 	private void BreakSelectedPoints() {
@@ -651,9 +683,10 @@ public class Shape2DWindow : EditorWindow {
 		int dragID = GUIUtility.GetControlID("Drag".GetHashCode(), FocusType.Passive);
 		if (GUIUtility.hotControl == dragID)
 			EditorGUIUtility.AddCursorRect(area, MouseCursor.Pan);
+		Rect selectionArea = new Rect(area.width - _selectedPanelWidth, area.height - _selectedPanelHeight, _selectedPanelWidth, _selectedPanelHeight);
 		switch (current.GetTypeForControl(dragID)) {
 			case EventType.ContextClick:
-				if (area.Contains(current.mousePosition)) {
+				if (area.Contains(current.mousePosition) && !selectionArea.Contains(current.mousePosition)) {
 					GenericMenu menu = new GenericMenu();
 					menu.AddItem(new GUIContent("Create point"), false, CreatePoint, current.mousePosition);
 					if (_selection.Count >= 1)
@@ -682,7 +715,7 @@ public class Shape2DWindow : EditorWindow {
 				}
 				break;
 			case EventType.MouseDown:
-				if (area.Contains(current.mousePosition) && current.button == 2) {
+				if (area.Contains(current.mousePosition) && !selectionArea.Contains(current.mousePosition) && current.button == 2) {
 					GUIUtility.hotControl = dragID;
 					current.Use();
 					EditorGUIUtility.SetWantsMouseJumping(1);
@@ -720,7 +753,7 @@ public class Shape2DWindow : EditorWindow {
 		}
 		switch (current.GetTypeForControl(selectID)) {
 			case EventType.MouseDown:
-				if (area.Contains(current.mousePosition) && current.button == 0) {
+				if (area.Contains(current.mousePosition) && !selectionArea.Contains(current.mousePosition) && current.button == 0) {
 					GUIUtility.hotControl = selectID;
 					current.Use();
 					_selectionStart = current.mousePosition;
@@ -783,7 +816,7 @@ public class Shape2DWindow : EditorWindow {
 			return;
 
 		// Draws the panel
-		BeginArea(new Rect(0, CurrentArea.height - _selectedPanelHeight, CurrentArea.width, _selectedPanelHeight), GUI.skin.box);
+		BeginArea(new Rect(CurrentArea.width - _selectedPanelWidth, CurrentArea.height - _selectedPanelHeight, _selectedPanelWidth, _selectedPanelHeight), GUI.skin.box);
 		EditorGUILayout.BeginVertical();
 
 		// Draws the point field
@@ -820,6 +853,10 @@ public class Shape2DWindow : EditorWindow {
 		// Draws the field
 		EditorGUILayout.LabelField(label);
 		EditorGUILayout.BeginHorizontal();
+		float labelWidth = EditorGUIUtility.labelWidth;
+		float fieldWidth = EditorGUIUtility.fieldWidth;
+		EditorGUIUtility.labelWidth = 15;
+		EditorGUIUtility.fieldWidth = 25;
 		if (sameX) {
 			float userX = EditorGUILayout.FloatField("X", x);
 			for (int i = 0; i < collection.Length; i++)
@@ -854,6 +891,8 @@ public class Shape2DWindow : EditorWindow {
 				}
 			}
 		}
+		EditorGUIUtility.labelWidth = labelWidth;
+		EditorGUIUtility.fieldWidth = fieldWidth; 
 		EditorGUILayout.EndHorizontal();
 	}
 
