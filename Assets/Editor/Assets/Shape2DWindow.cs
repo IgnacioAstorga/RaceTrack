@@ -22,7 +22,7 @@ public class Shape2DWindow : EditorWindow {
 	private float _cursorRectScale = 2f;
 
 	private float _shapeSelectorHeight = 20f;
-	private float _upperRibbonHeight = 20f;
+	private float _upperRibbonHeight = 40f;
 	private float _selectedPanelHeight = 80f;
 
 	private Stack<Rect> _areas = new Stack<Rect>();
@@ -91,7 +91,9 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	private void DrawUpperRibbon() {
-		// Draws the points buttons
+		EditorGUILayout.BeginVertical();
+
+		// Draws the first row
 		EditorGUILayout.BeginHorizontal();
 		if (GUILayout.Button("Add point"))
 			CreatePoint(_mainAreaRect.center - Vector2.up * (_shapeSelectorHeight + _upperRibbonHeight));
@@ -104,6 +106,16 @@ public class Shape2DWindow : EditorWindow {
 			MergeSelectedPoints();
 		GUI.enabled = true;
 		EditorGUILayout.EndHorizontal();
+
+		// Draws the second row
+		EditorGUILayout.BeginHorizontal();
+		GUI.enabled = HasSelection;
+		if (GUILayout.Button("Focus selected points"))
+			FocusSelection();
+		GUI.enabled = true;
+		EditorGUILayout.EndHorizontal();
+
+		EditorGUILayout.EndVertical();
 	}
 
 	private void DrawMainPanel() {
@@ -416,6 +428,22 @@ public class Shape2DWindow : EditorWindow {
 			DeletePoint(selectionCopy[i]);
 	}
 
+	private void FocusSelection() {
+		// Calculates the containing rect
+		Rect containingRect = new Rect();
+		Vector2[] selectedPoints;
+		GetSelectedPoints(out selectedPoints);
+		containingRect = containingRect.FromPoints(selectedPoints);
+		containingRect = containingRect.Expand(0.5f);
+
+		// Calculates the zoom
+		_scale =  Mathf.Min(_mainAreaRect.width / containingRect.width, _mainAreaRect.height / containingRect.height);
+
+		// Calculates the offset
+		_offset = containingRect.center * _scale;
+		_offset.x *= -1;
+	}
+
 	private void HandleMouseEvents(Rect area) {
 		// Drag Events
 		Event current = Event.current;
@@ -515,6 +543,9 @@ public class Shape2DWindow : EditorWindow {
 				else if (current.isKey && current.keyCode == KeyCode.Escape && HasSelection) {
 					_selection.Clear();
 					current.Use();
+				}
+				else if (current.isKey && current.keyCode == KeyCode.F && HasSelection) {
+					FocusSelection();
 				}
 				break;
 		}
