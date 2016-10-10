@@ -4,8 +4,9 @@ using System;
 using System.Collections.Generic;
 
 public class Shape2DWindow : EditorWindow {
-	
+
 	private bool HasSelection { get { return _selection.Count > 0; } }
+	private bool HasClipboard { get { return _clipboardPoints != null && _clipboardPoints.Length > 0; } }
 	private Rect CurrentArea { get { return _areas.Peek(); } }
 
 	private float _scale = 100;
@@ -100,7 +101,7 @@ public class Shape2DWindow : EditorWindow {
 		// Draws the first row
 		EditorGUILayout.BeginHorizontal();
 		if (GUILayout.Button("Add point"))
-			CreatePoint(_mainAreaRect.center - Vector2.up * (_shapeSelectorHeight + _upperRibbonHeight));
+			CreatePoint(GetScreenCenter());
 		GUI.enabled = HasSelection;
 		if (GUILayout.Button("Remove selected points"))
 			DeleteSelectedPoints();
@@ -116,10 +117,21 @@ public class Shape2DWindow : EditorWindow {
 		GUI.enabled = HasSelection;
 		if (GUILayout.Button("Focus selected points"))
 			FocusSelection();
+		if (GUILayout.Button("Copy selected points"))
+			CopySelection();
+		if (GUILayout.Button("Cut selected points"))
+			CutSelection();
+		GUI.enabled = HasClipboard;
+		if (GUILayout.Button("Paste copied points"))
+			PasteCopiedPoints(GetScreenCenter());
 		GUI.enabled = true;
 		EditorGUILayout.EndHorizontal();
 
 		EditorGUILayout.EndVertical();
+	}
+
+	private Vector2 GetScreenCenter() {
+		return _mainAreaRect.center - Vector2.up * (_shapeSelectorHeight + _upperRibbonHeight);
 	}
 
 	private void DrawMainPanel() {
@@ -269,12 +281,6 @@ public class Shape2DWindow : EditorWindow {
 						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Copy point"), false, CopySelection);
 						menu.AddItem(new GUIContent("Cut point"), false, CutSelection);
-						menu.AddSeparator("");
-						if (_clipboardPoints != null && _clipboardPoints.Length == 1)
-							menu.AddItem(new GUIContent("Paste point coordinates"), false, PastePointCoordinates, index);
-						else
-							menu.AddDisabledItem(new GUIContent("Paste point coordinates"));
-						menu.AddItem(new GUIContent("Paste copied points here"), false, PasteCopiedPoints, point);
 					}
 					else if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
@@ -284,9 +290,16 @@ public class Shape2DWindow : EditorWindow {
 						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Copy selected points"), false, CopySelection);
 						menu.AddItem(new GUIContent("Cut selected points"), false, CutSelection);
-						menu.AddSeparator("");
-						menu.AddItem(new GUIContent("Paste copied points here"), false, PasteCopiedPoints, point);
 					}
+					menu.AddSeparator("");
+					if (HasClipboard)
+						menu.AddItem(new GUIContent("Paste copied points here"), false, PasteCopiedPoints, point);
+					else
+						menu.AddDisabledItem(new GUIContent("Paste copied points here"));
+					if (_selection.Count <= 1 && HasClipboard && _clipboardPoints.Length == 1)
+						menu.AddItem(new GUIContent("Paste point coordinates"), false, PastePointCoordinates, index);
+					else
+						menu.AddDisabledItem(new GUIContent("Paste point coordinates"));
 					menu.ShowAsContext();
 					current.Use();
 				}
@@ -416,7 +429,7 @@ public class Shape2DWindow : EditorWindow {
 		}
 	}
 
-	private void CopySelection() {
+	public void CopySelection() {
 		if (HasSelection) {
 			_clipboardPoints = new Vector2[_selection.Count];
 			_clipboardNormals = new Vector2[_selection.Count];
@@ -558,7 +571,15 @@ public class Shape2DWindow : EditorWindow {
 						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Shrink selected points"), false, ShrinkSelectedPoints);
 						menu.AddItem(new GUIContent("Merge selected points"), false, MergeSelectedPoints);
+						menu.AddSeparator("");
+						menu.AddItem(new GUIContent("Copy selected points"), false, CopySelection);
+						menu.AddItem(new GUIContent("Cut selected points"), false, CutSelection);
 					}
+					menu.AddSeparator("");
+					if (HasClipboard)
+						menu.AddItem(new GUIContent("Paste copied points here"), false, PasteCopiedPoints, current.mousePosition);
+					else
+						menu.AddDisabledItem(new GUIContent("Paste copied points here"));
 					menu.ShowAsContext();
 					current.Use();
 				}
@@ -634,6 +655,7 @@ public class Shape2DWindow : EditorWindow {
 		int keyID = GUIUtility.GetControlID("Key".GetHashCode(), FocusType.Passive);
 		switch (current.GetTypeForControl(keyID)) {
 			case EventType.KeyDown:
+				GUIUtility.hotControl = keyID;
 				if (current.isKey && current.keyCode == KeyCode.Delete && HasSelection) {
 					DeleteSelectedPoints();
 					current.Use();
@@ -645,6 +667,16 @@ public class Shape2DWindow : EditorWindow {
 				else if (current.isKey && current.keyCode == KeyCode.F && HasSelection) {
 					FocusSelection();
 				}
+				else if (current.isKey && current.control && current.keyCode == KeyCode.X && HasSelection) {
+					CutSelection();
+				}
+				else if (current.isKey && current.control && current.keyCode == KeyCode.C && HasSelection) {
+					CopySelection();
+				}
+				else if (current.isKey && current.control && current.keyCode == KeyCode.V && HasClipboard) {
+					PasteCopiedPoints(GetScreenCenter());
+				}
+				GUIUtility.hotControl = 0;
 				break;
 		}
 	}
