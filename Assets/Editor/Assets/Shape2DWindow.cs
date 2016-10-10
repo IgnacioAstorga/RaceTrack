@@ -135,7 +135,9 @@ public class Shape2DWindow : EditorWindow {
 		if (GUILayout.Button("Recalculate selected normals"))
 			RecalculateSelectedNormals();
 		if (GUILayout.Button("Center selection on origin"))
-			CenterOnOrigin(); 
+			CenterOnOrigin();
+		if (GUILayout.Button("Break selected points"))
+			BreakSelectedPoints();
 		GUI.enabled = true;
 		EditorGUILayout.EndHorizontal();
 
@@ -304,7 +306,11 @@ public class Shape2DWindow : EditorWindow {
 					menu.AddItem(new GUIContent("Recalculate normal"), false, RecalculateNormal, index);
 					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Recalculate selected normals"), false, RecalculateSelectedNormals);
-						menu.AddSeparator("");
+					}
+					menu.AddSeparator("");
+					menu.AddItem(new GUIContent("Break point"), false, BreakPoint, index);
+					if (_selection.Count > 1) {
+						menu.AddItem(new GUIContent("Break selected points"), false, BreakSelectedPoints);
 						menu.AddItem(new GUIContent("Shrink selected points into this one"), false, ShrinkPoints, point);
 						menu.AddItem(new GUIContent("Merge selected points into this one"), false, MergePoints, index);
 						menu.AddSeparator("");
@@ -602,6 +608,43 @@ public class Shape2DWindow : EditorWindow {
 		FocusSelection();
 	}
 
+	private void BreakSelectedPoints() {
+		foreach (int index in _selection)
+			BreakPoint(index);
+	}
+
+	private void BreakPoint(object pointIndex) {
+		try {
+			int index = Convert.ToInt32(pointIndex);
+			List<int> lineOrigins = new List<int>();
+			for (int line = 0; line < _shape2D.lines.Length; line += 2) {
+				if (_shape2D.lines[line] == index)
+					lineOrigins.Add(_shape2D.lines[line + 1]);
+				else if (_shape2D.lines[line + 1] == index)
+					lineOrigins.Add(_shape2D.lines[line]);
+			}
+
+			if (lineOrigins.Count <= 1) {
+				Debug.LogWarning("WARNING: The selected point doesn't have enough lines to break.");
+				return;
+			}
+			
+			Vector2 point = _shape2D.points[index];
+			_shape2D.DeletePoint(index);
+			for (int i = 0; i < lineOrigins.Count; i++)
+				if (lineOrigins[i] > index)
+					lineOrigins[i] -= 1;
+			foreach (int origin in lineOrigins) {
+				_shape2D.AddPoint(point);
+				_shape2D.CreateLine(origin, _shape2D.points.Length - 1);
+				_shape2D.RecalculateNormal(_shape2D.points.Length - 1);
+			}
+		}
+		catch (Exception e) {
+			Debug.LogError("ERROR: Invalid point index: " + pointIndex + "\n" + e);
+		}
+	}
+
 	private void HandleMouseEvents(Rect area) {
 		// Drag Events
 		Event current = Event.current;
@@ -619,6 +662,10 @@ public class Shape2DWindow : EditorWindow {
 					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Recalculate selected normals"), false, RecalculateSelectedNormals);
 						menu.AddSeparator("");
+					}
+					if (_selection.Count >= 1)
+						menu.AddItem(new GUIContent("Break selected points"), false, BreakSelectedPoints);
+					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Shrink selected points"), false, ShrinkSelectedPoints);
 						menu.AddItem(new GUIContent("Merge selected points"), false, MergeSelectedPoints);
 						menu.AddSeparator("");
