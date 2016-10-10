@@ -17,6 +17,10 @@ public class Shape2DEditor : Editor {
 		base.OnInspectorGUI();
 		if (GUILayout.Button("Show Editor Window"))
 			Shape2DWindow.ShowWindow();
+		if (GUILayout.Button("Recalculate Normals")) {
+			Undo.RecordObject(_shape2D, "Recalculate Normals");
+			_shape2D.RecalculateAllNormals();
+		}
 	}
 
 	public override void OnPreviewGUI(Rect rectangle, GUIStyle background) {
