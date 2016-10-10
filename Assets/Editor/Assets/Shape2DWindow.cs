@@ -605,7 +605,8 @@ public class Shape2DWindow : EditorWindow {
 				}
 				break;
 			case EventType.ScrollWheel:
-				_scale = Mathf.Min(600, Mathf.Max(1, _oldScale - current.delta.y * _oldScale / 60));
+				_scale = Mathf.Clamp(_oldScale - current.delta.y * _oldScale / 60, 1, 600);
+				_offset *= _scale / _oldScale;
 				break;
 		}
 
