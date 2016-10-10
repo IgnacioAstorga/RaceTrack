@@ -22,6 +22,7 @@ public class Shape2DWindow : EditorWindow {
 	private float _cursorRectScale = 2f;
 
 	private float _shapeSelectorHeight = 20f;
+	private float _upperRibbonHeight = 20f;
 	private float _selectedPanelHeight = 80f;
 
 	private Stack<Rect> _areas = new Stack<Rect>();
@@ -48,16 +49,18 @@ public class Shape2DWindow : EditorWindow {
 		_areas.Push(position);
 
 		// Retrieves the shape
-		if (_shape2D == null)
-			_selection.Clear();
-		_shape2D = (Shape2D)EditorGUILayout.ObjectField(_shape2D, typeof(Shape2D), false);
-		if (Selection.activeObject != null && Selection.activeObject is Shape2D)
-			LoadShape2D((Shape2D)Selection.activeObject);
+		DrawShapeSelector();
+
+		// Fixes the selection
+		_selection.RemoveWhere(e => e >= _shape2D.points.Length);
 
 		// Draw Shape & Handle Events
 		if (_shape2D != null) {
 			// Records an Undo command
 			Undo.RecordObject(_shape2D, "Modify Shape2D");
+
+			// Draws the upper ribbon
+			DrawUpperRibbon();
 
 			// Draws the main panel
 			DrawMainPanel();
@@ -79,10 +82,28 @@ public class Shape2DWindow : EditorWindow {
 		GUILayout.EndArea();
 	}
 
-	private void DrawMainPanel() {
-		_mainAreaRect = new Rect(0, _shapeSelectorHeight, CurrentArea.width, CurrentArea.height - _shapeSelectorHeight);
-		BeginArea(_mainAreaRect);
+	private void DrawShapeSelector() {
+		if (_shape2D == null)
+			_selection.Clear();
+		_shape2D = (Shape2D)EditorGUILayout.ObjectField(_shape2D, typeof(Shape2D), false);
+		if (Selection.activeObject != null && Selection.activeObject is Shape2D)
+			LoadShape2D((Shape2D)Selection.activeObject);
+	}
 
+	private void DrawUpperRibbon() {
+		EditorGUILayout.BeginHorizontal();
+
+		// Draws the buttons
+		if (GUILayout.Button("Add point"))
+			CreatePoint(_mainAreaRect.center);
+
+		EditorGUILayout.EndHorizontal();
+	}
+
+	private void DrawMainPanel() {
+		_mainAreaRect = new Rect(0, _shapeSelectorHeight + _upperRibbonHeight, CurrentArea.width, CurrentArea.height - _shapeSelectorHeight - _upperRibbonHeight);
+		BeginArea(_mainAreaRect);
+		
 		// Saves the offset and scale values. Transforms the values
 		_oldOffset = _offset;
 		_oldScale = _scale;
@@ -112,17 +133,17 @@ public class Shape2DWindow : EditorWindow {
 			EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
 		}
 
+		// Draws the selected object information
+		DrawSelected();
+
 		// Handles the points events
 		HandlePointsEvents();
 
 		// Handles the normals evenets
 		HandleNormalsEvents();
 
-		// Draws the selected object information
-		DrawSelected();
-
 		// Manages the mouse and keyboard events
-		HandleMouseEvents(CurrentArea);
+		HandleMouseEvents(new Rect(0, 0, CurrentArea.width, CurrentArea.height - (HasSelection ? _selectedPanelHeight : 0)));
 		HandleKeyboardEvents();
 
 		EndArea();
