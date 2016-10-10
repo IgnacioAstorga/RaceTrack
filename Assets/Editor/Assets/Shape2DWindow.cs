@@ -420,13 +420,11 @@ public class Shape2DWindow : EditorWindow {
 			if (!_selection.Contains(_shape2D.lines[i]) && _selection.Contains(_shape2D.lines[i + 1]))
 				lineOrigins.Add(_shape2D.lines[i]);
 		}
-		foreach (int index in _selection)
-			for (int i = 0; i < lineOrigins.Count; i++)
-				if (lineOrigins[i] > index)
-					lineOrigins[i] -= 1;
 
-		// Removes any selected point
-		DeleteSelectedPoints();
+		// Stores the selection
+		int[] selectionCopy = new int[_selection.Count];
+		_selection.CopyTo(selectionCopy);
+		_selection.Clear();
 
 		// Creates a new point and sets it's normal
 		_shape2D.AddPoint(point);
@@ -437,8 +435,10 @@ public class Shape2DWindow : EditorWindow {
 		foreach (int lineOrigin in lineOrigins)
 			_shape2D.CreateLine(lineOrigin, pointIndex);
 
-		// Selects the new point
-		_selection.Add(pointIndex);
+		// Removes the selected points
+		Array.Sort(selectionCopy);
+		for (int i = selectionCopy.Length - 1; i >= 0; i--)
+			_shape2D.DeletePoint(selectionCopy[i]);
 	}
 
 	private void CreatePoint(object position) {
