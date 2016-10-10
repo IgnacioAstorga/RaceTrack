@@ -13,6 +13,12 @@ public class Shape2DEditor : Editor {
 	private Vector2 _drag = new Vector2(45, -25);
 	private float _distance = 15;
 
+	public override void OnInspectorGUI() {
+		base.OnInspectorGUI();
+		if (GUILayout.Button("Show Editor Window"))
+			Shape2DWindow.ShowWindow();
+	}
+
 	public override void OnPreviewGUI(Rect rectangle, GUIStyle background) {
 		ReadInput(rectangle);
 
