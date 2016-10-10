@@ -134,6 +134,8 @@ public class Shape2DWindow : EditorWindow {
 		GUI.enabled = HasSelection;
 		if (GUILayout.Button("Recalculate selected normals"))
 			RecalculateSelectedNormals();
+		if (GUILayout.Button("Center selection on origin"))
+			CenterOnOrigin(); 
 		GUI.enabled = true;
 		EditorGUILayout.EndHorizontal();
 
@@ -142,6 +144,10 @@ public class Shape2DWindow : EditorWindow {
 
 	private Vector2 GetScreenCenter() {
 		return _mainAreaRect.center - Vector2.up * (_shapeSelectorHeight + _upperRibbonHeight);
+	}
+
+	private Rect GetSelectionRect() {
+		return new Rect(0, 0, CurrentArea.width, CurrentArea.height - (HasSelection ? _selectedPanelHeight : 0));
 	}
 
 	private void DrawMainPanel() {
@@ -184,7 +190,7 @@ public class Shape2DWindow : EditorWindow {
 		HandleNormalsEvents();
 
 		// Manages the mouse and keyboard events
-		HandleMouseEvents(new Rect(0, 0, CurrentArea.width, CurrentArea.height - (HasSelection ? _selectedPanelHeight : 0)));
+		HandleMouseEvents(GetSelectionRect());
 		HandleKeyboardEvents();
 
 		// Draws the selected object information
@@ -221,9 +227,9 @@ public class Shape2DWindow : EditorWindow {
 
 		// Draws the ADD and REMOVE rects
 		if (Event.current.alt)
-			EditorGUIUtility.AddCursorRect(CurrentArea, MouseCursor.ArrowMinus);
+			EditorGUIUtility.AddCursorRect(GetSelectionRect(), MouseCursor.ArrowMinus);
 		else if (Event.current.control)
-			EditorGUIUtility.AddCursorRect(CurrentArea, MouseCursor.ArrowPlus);
+			EditorGUIUtility.AddCursorRect(GetSelectionRect(), MouseCursor.ArrowPlus);
 	}
 
 	private void DrawLine(Vector2 point1, Vector2 point2,float width, Color color) {
@@ -586,6 +592,16 @@ public class Shape2DWindow : EditorWindow {
 		}
 	}
 
+	private void CenterOnOrigin() {
+		Rect rect = new Rect();
+		Vector2[] selectedPoints;
+		GetSelectedPoints(out selectedPoints);
+		rect = rect.FromPoints(selectedPoints);
+		foreach (int index in _selection)
+			_shape2D.points[index] -= rect.center;
+		FocusSelection();
+	}
+
 	private void HandleMouseEvents(Rect area) {
 		// Drag Events
 		Event current = Event.current;
@@ -690,7 +706,6 @@ public class Shape2DWindow : EditorWindow {
 		int keyID = GUIUtility.GetControlID("Key".GetHashCode(), FocusType.Passive);
 		switch (current.GetTypeForControl(keyID)) {
 			case EventType.KeyDown:
-				GUIUtility.hotControl = keyID;
 				if (current.isKey && current.keyCode == KeyCode.Delete && HasSelection) {
 					DeleteSelectedPoints();
 					current.Use();
@@ -711,7 +726,6 @@ public class Shape2DWindow : EditorWindow {
 				else if (current.isKey && current.control && current.keyCode == KeyCode.V && HasClipboard) {
 					PasteCopiedPoints(GetScreenCenter());
 				}
-				GUIUtility.hotControl = 0;
 				break;
 		}
 	}
