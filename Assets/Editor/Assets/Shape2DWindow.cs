@@ -34,6 +34,10 @@ public class Shape2DWindow : EditorWindow {
 	private Vector2 _selectionStart;
 	private bool _selectionDragged;
 
+	private Vector2[] _clipboardPoints;
+	private Vector2[] _clipboardNormals;
+	private int[] _clipboardLines;
+
 	[MenuItem("Window/Shape 2D Editor")]
 	public static void ShowWindow() {
 		GetWindow<Shape2DWindow>("Shape 2D Editor");
@@ -261,11 +265,27 @@ public class Shape2DWindow : EditorWindow {
 				if (area.Contains(current.mousePosition)) {
 					GenericMenu menu = new GenericMenu();
 					menu.AddItem(new GUIContent("Delete point"), false, DeletePoint, index);
-					if (_selection.Count > 1) {
+					if (_selection.Count <= 1) {
+						menu.AddSeparator("");
+						menu.AddItem(new GUIContent("Copy point"), false, CopySelection);
+						menu.AddItem(new GUIContent("Cut point"), false, CutSelection);
+						menu.AddSeparator("");
+						if (_clipboardPoints != null && _clipboardPoints.Length == 1)
+							menu.AddItem(new GUIContent("Paste point coordinates"), false, PastePointCoordinates, index);
+						else
+							menu.AddDisabledItem(new GUIContent("Paste point coordinates"));
+						menu.AddItem(new GUIContent("Paste copied points here"), false, PasteCopiedPoints, point);
+					}
+					else if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
 						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Shrink selected points into this one"), false, ShrinkPoints, point);
 						menu.AddItem(new GUIContent("Merge selected points into this one"), false, MergePoints, index);
+						menu.AddSeparator("");
+						menu.AddItem(new GUIContent("Copy selected points"), false, CopySelection);
+						menu.AddItem(new GUIContent("Cut selected points"), false, CutSelection);
+						menu.AddSeparator("");
+						menu.AddItem(new GUIContent("Paste copied points here"), false, PasteCopiedPoints, point);
 					}
 					menu.ShowAsContext();
 					current.Use();
@@ -393,6 +413,84 @@ public class Shape2DWindow : EditorWindow {
 		}
 		catch (Exception e) {
 			Debug.LogError("ERROR: Invalid position: " + position + "\n" + e);
+		}
+	}
+
+	private void CopySelection() {
+		if (HasSelection) {
+			_clipboardPoints = new Vector2[_selection.Count];
+			_clipboardNormals = new Vector2[_selection.Count];
+			int[] indices = new int[_selection.Count];
+			int it = 0;
+			foreach (int index in _selection) {
+				_clipboardPoints[it] = _shape2D.points[index];
+				_clipboardNormals[it] = _shape2D.normals[index];
+				indices[it] = index;
+				it++;
+			}
+			List<int> lines = new List<int>();
+			for (int line = 0; line < _shape2D.lines.Length; line += 2) {
+				for (int i = 0; i < indices.Length; i++) {
+					for (int j = i + 1; j < indices.Length; j++) {
+						if ((_shape2D.lines[line] == indices[i] && _shape2D.lines[line + 1] == indices[j]) ||
+							(_shape2D.lines[line] == indices[j] && _shape2D.lines[line + 1] == indices[i])) {
+							lines.Add(i);
+							lines.Add(j);
+						}
+					}
+				}
+			}
+			_clipboardLines = lines.ToArray();
+		}
+		else {
+			_clipboardPoints = null;
+			_clipboardNormals = null;
+			_clipboardLines = null;
+		}
+	}
+
+	private void CutSelection() {
+		CopySelection();
+		DeleteSelectedPoints();
+	}
+
+	private void PasteCopiedPoints(object offset) {
+		try {
+			Rect containing = new Rect();
+			containing = containing.FromPoints(_clipboardPoints);
+			Vector2 displacement = ScreenToPoint((Vector2)offset) - containing.center;
+			_selection.Clear();
+			int originalLength = _shape2D.points.Length;
+			for (int i = 0; i < _clipboardPoints.Length; i++) {
+				// Copies the point
+				_shape2D.AddPoint(displacement + _clipboardPoints[i]);
+				_selection.Add(_shape2D.points.Length - 1);
+
+				// Copies the normal
+				_shape2D.normals[_shape2D.normals.Length - 1] = _clipboardNormals[i];
+			}
+
+			// Copies the lines
+			for (int line = 0; line < _clipboardLines.Length; line += 2)
+				_shape2D.CreateLine(originalLength + _clipboardLines[line], originalLength + _clipboardLines[line + 1]);
+		}
+		catch (Exception e) {
+			Debug.LogError("ERROR: Invalid offset: " + offset + "\n" + e);
+		}
+	}
+
+	private void PastePointCoordinates(object pointIndex) {
+		try {
+			if (_clipboardPoints == null || _clipboardPoints.Length != 1) {
+				Debug.LogWarning("WARNGING: Attempt to paste coordinates with invalid selection!");
+				return;
+			}
+			int index = Convert.ToInt32(pointIndex);
+			_shape2D.points[index] = _clipboardPoints[0];
+			_shape2D.normals[index] = _clipboardNormals[0];
+		}
+		catch (Exception e) {
+			Debug.LogError("ERROR: Invalid point index: " + pointIndex + "\n" + e);
 		}
 	}
 
