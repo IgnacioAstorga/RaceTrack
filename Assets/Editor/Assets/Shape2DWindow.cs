@@ -23,7 +23,7 @@ public class Shape2DWindow : EditorWindow {
 	private float _cursorRectScale = 2f;
 
 	private float _shapeSelectorHeight = 20f;
-	private float _upperRibbonHeight = 40f;
+	private float _upperRibbonHeight = 60f;
 	private float _selectedPanelHeight = 80f;
 
 	private Stack<Rect> _areas = new Stack<Rect>();
@@ -124,6 +124,16 @@ public class Shape2DWindow : EditorWindow {
 		GUI.enabled = HasClipboard;
 		if (GUILayout.Button("Paste copied points"))
 			PasteCopiedPoints(GetScreenCenter());
+		GUI.enabled = true;
+		EditorGUILayout.EndHorizontal();
+
+		// Draws the third row
+		EditorGUILayout.BeginHorizontal();
+		if (GUILayout.Button("Recalculate all normals"))
+			RecalculateAllNormals();
+		GUI.enabled = HasSelection;
+		if (GUILayout.Button("Recalculate selected normals"))
+			RecalculateSelectedNormals();
 		GUI.enabled = true;
 		EditorGUILayout.EndHorizontal();
 
@@ -278,12 +288,16 @@ public class Shape2DWindow : EditorWindow {
 					GenericMenu menu = new GenericMenu();
 					menu.AddItem(new GUIContent("Delete point"), false, DeletePoint, index);
 					if (_selection.Count <= 1) {
-						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Copy point"), false, CopySelection);
 						menu.AddItem(new GUIContent("Cut point"), false, CutSelection);
 					}
 					else if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
+					}
+					menu.AddSeparator("");
+					menu.AddItem(new GUIContent("Recalculate normal"), false, RecalculateNormal, index);
+					if (_selection.Count > 1) {
+						menu.AddItem(new GUIContent("Recalculate selected normals"), false, RecalculateSelectedNormals);
 						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Shrink selected points into this one"), false, ShrinkPoints, point);
 						menu.AddItem(new GUIContent("Merge selected points into this one"), false, MergePoints, index);
@@ -555,6 +569,23 @@ public class Shape2DWindow : EditorWindow {
 		_offset.x *= -1;
 	}
 
+	private void RecalculateSelectedNormals() {
+		_shape2D.RecalculateNormals(_selection);
+	}
+
+	private void RecalculateAllNormals() {
+		_shape2D.RecalculateAllNormals();
+	}
+
+	private void RecalculateNormal(object normalIndex) {
+		try {
+			_shape2D.RecalculateNormal(Convert.ToInt32(normalIndex));
+		}
+		catch (Exception e) {
+			Debug.LogError("ERROR: Invalid normal index: " + normalIndex + "\n" + e);
+		}
+	}
+
 	private void HandleMouseEvents(Rect area) {
 		// Drag Events
 		Event current = Event.current;
@@ -566,16 +597,19 @@ public class Shape2DWindow : EditorWindow {
 				if (area.Contains(current.mousePosition)) {
 					GenericMenu menu = new GenericMenu();
 					menu.AddItem(new GUIContent("Create point"), false, CreatePoint, current.mousePosition);
-					if (_selection.Count > 1) {
+					if (_selection.Count >= 1)
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
+					menu.AddSeparator("");
+					if (_selection.Count > 1) {
+						menu.AddItem(new GUIContent("Recalculate selected normals"), false, RecalculateSelectedNormals);
 						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Shrink selected points"), false, ShrinkSelectedPoints);
 						menu.AddItem(new GUIContent("Merge selected points"), false, MergeSelectedPoints);
 						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Copy selected points"), false, CopySelection);
 						menu.AddItem(new GUIContent("Cut selected points"), false, CutSelection);
+						menu.AddSeparator("");
 					}
-					menu.AddSeparator("");
 					if (HasClipboard)
 						menu.AddItem(new GUIContent("Paste copied points here"), false, PasteCopiedPoints, current.mousePosition);
 					else

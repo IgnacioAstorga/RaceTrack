@@ -67,4 +67,32 @@ public class Shape2D : ScriptableObject {
 		newLines[lines.Length + 1] = endIndex;
 		lines = newLines;
 	}
+
+	public void RecalculateNormals(IEnumerable<int> normalIndices) {
+		foreach (int index in normalIndices)
+			RecalculateNormal(index);
+	}
+
+	public void RecalculateAllNormals() {
+		for (int i = 0; i < normals.Length; i++)
+			RecalculateNormal(i);
+	}
+
+	public void RecalculateNormal(int normalIndex) {
+		List<Vector2> lineDirections = new List<Vector2>();
+		for (int line = 0; line < lines.Length; line += 2)
+			if (lines[line] == normalIndex || lines[line + 1] == normalIndex)
+				lineDirections.Add(points[lines[line + 1]] - points[lines[line]]);
+
+		if (lineDirections.Count == 0)
+			normals[normalIndex] = Vector2.up;
+		else if (lineDirections.Count == 1)
+			normals[normalIndex] = Quaternion.Euler(0, 0, -90) * lineDirections[0];
+		else {
+			Vector2 normalSum = Vector2.zero;
+			foreach (Vector2 lineDireciton in lineDirections)
+				normalSum += lineDireciton;
+			normals[normalIndex] = normalSum.normalized;
+		}
+	}
 }
