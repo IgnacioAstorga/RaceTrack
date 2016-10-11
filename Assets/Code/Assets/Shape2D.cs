@@ -68,6 +68,30 @@ public class Shape2D : ScriptableObject {
 		lines = newLines;
 	}
 
+	public void RemoveLine(int pointA, int pointB) {
+		List<int> newLines = new List<int>();
+		for (int line = 0; line < lines.Length; line += 2) {
+			if ((lines[line] == pointA && lines[line + 1] == pointB) ||
+				(lines[line] == pointB && lines[line + 1] == pointA))
+				continue;
+			else {
+				newLines.Add(lines[line]);
+				newLines.Add(lines[line + 1]);
+			}
+		}
+		lines = newLines.ToArray();
+	}
+
+	public bool AreConnected(int pointA, int pointB) {
+		for (int line = 0; line < lines.Length; line += 2) {
+			if (lines[line] == pointA && lines[line + 1] == pointB)
+				return true;
+			if (lines[line] == pointB && lines[line + 1] == pointA)
+				return true;
+		}
+		return false;
+	}
+
 	public void RecalculateNormals(IEnumerable<int> normalIndices) {
 		foreach (int index in normalIndices)
 			RecalculateNormal(index);

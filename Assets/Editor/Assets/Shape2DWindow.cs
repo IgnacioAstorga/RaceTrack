@@ -159,6 +159,20 @@ public class Shape2DWindow : EditorWindow {
 			menu.ShowAsContext();
 		}
 
+		// Lines
+		if (GUILayout.Button("Lines")) {
+			GenericMenu menu = new GenericMenu();
+			if (_selection.Count >= 2) {
+				menu.AddItem(new GUIContent("Create line between selected points"), false, CreateLineBetweenSelectedPoints);
+				menu.AddItem(new GUIContent("Remove lines between selected points"), false, RemoveLinesBetweenSelectedPoints);
+			}
+			else {
+				menu.AddDisabledItem(new GUIContent("Create line between selected points"));
+				menu.AddDisabledItem(new GUIContent("Remove lines between selected points"));
+			}
+			menu.ShowAsContext();
+		}
+
 		// Normals
 		if (GUILayout.Button("Normals")) {
 			GenericMenu menu = new GenericMenu();
@@ -438,10 +452,15 @@ public class Shape2DWindow : EditorWindow {
 						menu.AddItem(new GUIContent("Copy point"), false, CopySelection);
 						menu.AddItem(new GUIContent("Cut point"), false, CutSelection);
 					}
-					else if (_selection.Count > 1) {
+					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
 					}
 					menu.AddSeparator("");
+					if (_selection.Count >= 2) {
+						menu.AddItem(new GUIContent("Create line between selected points"), false, CreateLineBetweenSelectedPoints);
+						menu.AddItem(new GUIContent("Remove lines between selected points"), false, RemoveLinesBetweenSelectedPoints);
+						menu.AddSeparator("");
+					}
 					menu.AddItem(new GUIContent("Recalculate normal"), false, RecalculateNormal, index);
 					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Recalculate selected normals"), false, RecalculateSelectedNormals);
@@ -790,6 +809,30 @@ public class Shape2DWindow : EditorWindow {
 		}
 	}
 
+	private void CreateLineBetweenSelectedPoints() {
+		if (_selection.Count < 2) {
+			Debug.LogWarning("WARNING: Atpempted to create a line with an invalid number of points selected!");
+			return;
+		}
+		int[] points = new int[_selection.Count];
+		_selection.CopyTo(points);
+		for (int i = 0; i < points.Length - 1; i++)
+			if (!_shape2D.AreConnected(points[i], points[i + 1]))
+				_shape2D.CreateLine(points[i], points[i + 1]);
+	}
+
+	private void RemoveLinesBetweenSelectedPoints() {
+		if (_selection.Count < 2) {
+			Debug.LogWarning("WARNING: Attempted to remove a line with an invalid number of points selected!");
+			return;
+		}
+		int[] points = new int[_selection.Count];
+		_selection.CopyTo(points);
+		for (int i = 0; i < points.Length; i++)
+			for (int j = i + 1; j < points.Length; j++)
+				_shape2D.RemoveLine(points[i], points[j]);
+	}
+
 	private void HandleMouseEvents(Rect area) {
 		// Drag Events
 		Event current = Event.current;
@@ -805,6 +848,11 @@ public class Shape2DWindow : EditorWindow {
 					if (_selection.Count >= 1)
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
 					menu.AddSeparator("");
+					if (_selection.Count >= 2) {
+						menu.AddItem(new GUIContent("Create line between selected points"), false, CreateLineBetweenSelectedPoints);
+						menu.AddItem(new GUIContent("Remove lines between selected points"), false, RemoveLinesBetweenSelectedPoints);
+						menu.AddSeparator("");
+					}
 					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Recalculate selected normals"), false, RecalculateSelectedNormals);
 						menu.AddSeparator("");
