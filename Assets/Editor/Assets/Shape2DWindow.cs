@@ -377,10 +377,12 @@ public class Shape2DWindow : EditorWindow {
 		// Draw texture preview
 		Rect area = new Rect(_pointsListWidth, _shapeSelectorHeight + _upperRibbonHeight, CurrentArea.width - _pointsListWidth, _previewTextureSize);
 		BeginArea(area);
+		area = area.Expand(-1);
 
 		float dimensions = Mathf.Min(area.height, area.width);
 		Rect textureArea = new Rect(0, 0, dimensions, dimensions);
-		BeginArea(textureArea);
+		BeginArea(textureArea, GUI.skin.box);
+		textureArea = textureArea.Expand(-1);
 
 		GUI.DrawTexture(textureArea, _previewTexture);
 
@@ -433,7 +435,8 @@ public class Shape2DWindow : EditorWindow {
 				break;
 			case EventType.MouseDrag:
 				if (GUIUtility.hotControl == resizeAreaID) {
-					_previewTextureSize = Mathf.Clamp(_previewTextureSize + current.delta.y, 10, position.height - _shapeSelectorHeight - _upperRibbonHeight - 10);
+					float delta = current.mousePosition.y - resizeArea.center.y;
+					_previewTextureSize = Mathf.Clamp(_previewTextureSize + delta, 10, position.height - _shapeSelectorHeight - _upperRibbonHeight - 10);
 				}
 				break;
 		}

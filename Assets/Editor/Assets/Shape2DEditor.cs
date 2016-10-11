@@ -65,7 +65,7 @@ public class Shape2DEditor : Editor {
 		return true;
 	}
 
-	private Mesh MeshFromShape(Shape2D shape, int length) {
+	private static Mesh MeshFromShape(Shape2D shape, int length) {
 		// Creates the vertices
 		Vector3[] meshVertices = new Vector3[2 * shape.points.Length];
 		for (int i = 0; i < shape.points.Length; i++) {
@@ -105,14 +105,14 @@ public class Shape2DEditor : Editor {
 		}
 
 		// Populates the mesh
-		_mesh = new Mesh();
-		_mesh.vertices = meshVertices;
-		_mesh.normals = meshNormals;
-		_mesh.uv = meshUVs;
-		_mesh.triangles = meshTriangles;
-		_mesh.RecalculateBounds();
+		Mesh mesh = new Mesh();
+		mesh.vertices = meshVertices;
+		mesh.normals = meshNormals;
+		mesh.uv = meshUVs;
+		mesh.triangles = meshTriangles;
+		mesh.RecalculateBounds();
 
-		return _mesh;
+		return mesh;
 	}
 
 	public void ReadInput(Rect position) {
