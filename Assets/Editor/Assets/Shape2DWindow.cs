@@ -15,6 +15,7 @@ public class Shape2DWindow : EditorWindow {
 	private Vector2 _offset = Vector2.zero;
 	private Vector2 _oldOffset;
 	private Vector2 _pointListScroll = Vector2.zero;
+	private bool _showingUs = false;
 
 	private float _pointRadius = 5f;
 	private float _lineWidth = 5f;
@@ -25,7 +26,7 @@ public class Shape2DWindow : EditorWindow {
 
 	private float _shapeSelectorHeight = 20f;
 	private float _upperRibbonHeight = 20f;
-	private float _pointsListWidth = 120f;
+	private float _pointsListWidth = 150f;
 	private float _selectedPanelHeight = 80f;
 	private float _selectedPanelWidth = 120f;
 
@@ -217,10 +218,11 @@ public class Shape2DWindow : EditorWindow {
 		BeginArea(new Rect(0, _shapeSelectorHeight + _upperRibbonHeight, _pointsListWidth, CurrentArea.height - _shapeSelectorHeight - _upperRibbonHeight));
 
 		float labelWidth = EditorGUIUtility.labelWidth;
-
-		EditorGUILayout.BeginHorizontal(GUI.skin.box);
-		EditorGUILayout.LabelField("Points");
-		EditorGUILayout.EndHorizontal();
+		
+		if (!_showingUs)
+			_showingUs = GUILayout.Button("Points");
+		else
+			_showingUs = !GUILayout.Button("Tex coords");
 
 		_pointListScroll = EditorGUILayout.BeginScrollView(_pointListScroll, GUI.skin.textArea);
 		EditorGUILayout.BeginVertical();
@@ -230,7 +232,10 @@ public class Shape2DWindow : EditorWindow {
 			if (_selection.Contains(i))
 				EditorGUI.DrawRect(rect, new Color(1f, 0f, 0f, 0.5f));
 			EditorGUILayout.PrefixLabel(i.ToString());
-			_shape2D.points[i] = EditorGUILayout.Vector2Field("", _shape2D.points[i]);
+			if (!_showingUs)
+				_shape2D.points[i] = EditorGUILayout.Vector2Field("", _shape2D.points[i]);
+			else
+				_shape2D.us[i] = EditorGUILayout.Slider(_shape2D.us[i], 0, 1, GUILayout.Width(120));
 			EditorGUILayout.EndHorizontal();
 			EditorGUILayout.Separator();
 
