@@ -170,6 +170,13 @@ public class Shape2DWindow : EditorWindow {
 				menu.AddDisabledItem(new GUIContent("Create line between selected points"));
 				menu.AddDisabledItem(new GUIContent("Remove lines between selected points"));
 			}
+			menu.AddSeparator("");
+			if (_selection.Count >= 2) {
+				menu.AddItem(new GUIContent("Divide selected lines"), false, DivideSelectedLines);
+			}
+			else {
+				menu.AddDisabledItem(new GUIContent("Divide selected lines"));
+			}
 			menu.ShowAsContext();
 		}
 
@@ -459,6 +466,8 @@ public class Shape2DWindow : EditorWindow {
 					if (_selection.Count >= 2) {
 						menu.AddItem(new GUIContent("Create line between selected points"), false, CreateLineBetweenSelectedPoints);
 						menu.AddItem(new GUIContent("Remove lines between selected points"), false, RemoveLinesBetweenSelectedPoints);
+						menu.AddSeparator("");
+						menu.AddItem(new GUIContent("Divide selected lines"), false, DivideSelectedLines);
 						menu.AddSeparator("");
 					}
 					menu.AddItem(new GUIContent("Recalculate normal"), false, RecalculateNormal, index);
@@ -833,6 +842,24 @@ public class Shape2DWindow : EditorWindow {
 				_shape2D.RemoveLine(points[i], points[j]);
 	}
 
+	private void DivideSelectedLines() {
+		if (_selection.Count < 2) {
+			Debug.LogWarning("WARNING: Attempted to remove a line with an invalid number of points selected!");
+			return;
+		}
+		int[] points = new int[_selection.Count];
+		_selection.CopyTo(points);
+		for (int i = 0; i < points.Length; i++)
+			for (int j = i + 1; j < points.Length; j++)
+				if (_shape2D.AreConnected(points[i], points[j])) {
+					_shape2D.RemoveLine(points[i], points[j]);
+					_shape2D.AddPoint((_shape2D.points[points[i]] + _shape2D.points[points[j]]) / 2);
+					_shape2D.normals[_shape2D.normals.Length - 1] = (_shape2D.normals[points[i]] + _shape2D.normals[points[j]]) / 2;
+					_shape2D.CreateLine(points[i], _shape2D.points.Length - 1);
+					_shape2D.CreateLine(points[j], _shape2D.points.Length - 1);
+				}
+	}
+
 	private void HandleMouseEvents(Rect area) {
 		// Drag Events
 		Event current = Event.current;
@@ -851,6 +878,8 @@ public class Shape2DWindow : EditorWindow {
 					if (_selection.Count >= 2) {
 						menu.AddItem(new GUIContent("Create line between selected points"), false, CreateLineBetweenSelectedPoints);
 						menu.AddItem(new GUIContent("Remove lines between selected points"), false, RemoveLinesBetweenSelectedPoints);
+						menu.AddSeparator("");
+						menu.AddItem(new GUIContent("Divide selected lines"), false, DivideSelectedLines);
 						menu.AddSeparator("");
 					}
 					if (_selection.Count > 1) {
