@@ -21,6 +21,9 @@ public class Shape2DEditor : Editor {
 			Undo.RecordObject(_shape2D, "Recalculate Normals");
 			_shape2D.RecalculateAllNormals();
 		}
+		if (_material == null)
+			_material = new Material(Shader.Find("Unlit/Color NoCull"));
+		_material = (Material) EditorGUILayout.ObjectField("Preview material", _material, typeof(Material), false);
 	}
 
 	public override void OnPreviewGUI(Rect rectangle, GUIStyle background) {
@@ -50,7 +53,6 @@ public class Shape2DEditor : Editor {
 
 		_shape2D = (Shape2D)target;
 		_mesh = MeshFromShape(_shape2D, 1);
-		_material = new Material(Shader.Find("Unlit/Color NoCull"));
 
 		if (_previewRenderUtility == null) {
 			_previewRenderUtility = new PreviewRenderUtility();
