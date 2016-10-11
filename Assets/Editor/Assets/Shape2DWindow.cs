@@ -132,6 +132,19 @@ public class Shape2DWindow : EditorWindow {
 				menu.AddDisabledItem(new GUIContent("Center selection on origin"));
 				menu.AddDisabledItem(new GUIContent("Center selection on screen"));
 			}
+			menu.AddSeparator("");
+			if (HasSelection) {
+				menu.AddItem(new GUIContent("Mirror selection horizontally global"), false, MirrorSelectionHorizontal, true);
+				menu.AddItem(new GUIContent("Mirror selection vertically global"), false, MirrorSelectionVertical, true);
+				menu.AddItem(new GUIContent("Mirror selection horizontally local"), false, MirrorSelectionHorizontal, false);
+				menu.AddItem(new GUIContent("Mirror selection vertically local"), false, MirrorSelectionVertical, false);
+			}
+			else {
+				menu.AddDisabledItem(new GUIContent("Mirror selection horizontally global"));
+				menu.AddDisabledItem(new GUIContent("Mirror selection vertically global"));
+				menu.AddDisabledItem(new GUIContent("Mirror selection horizontally local"));
+				menu.AddDisabledItem(new GUIContent("Mirror selection vertically local"));
+			}
 			menu.ShowAsContext();
 		}
 
@@ -867,6 +880,48 @@ public class Shape2DWindow : EditorWindow {
 					_shape2D.CreateLine(points[j], _shape2D.points.Length - 1);
 					_selection.Add(_shape2D.points.Length - 1);
 				}
+	}
+
+	private void MirrorSelectionHorizontal(object global) {
+		try {
+			bool isGlobal = Convert.ToBoolean(global);
+			Rect rect = new Rect();
+			if (!isGlobal) {
+				Vector2[] selectedPoints;
+				GetSelectedPoints(out selectedPoints);
+				rect = rect.FromPoints(selectedPoints);
+			}
+
+			foreach (int index in _selection) {
+				Vector2 offset = _shape2D.points[index] - rect.center;
+				offset.x *= -1;
+				_shape2D.points[index] = rect.center + offset;
+			}
+		}
+		catch (Exception e) {
+			Debug.LogError("ERROR: The parameter is not a valid boolean: " + global + "\n" + e);
+		}
+	}
+
+	private void MirrorSelectionVertical(object global) {
+		try {
+			bool isGlobal = Convert.ToBoolean(global);
+			Rect rect = new Rect();
+			if (!isGlobal) {
+				Vector2[] selectedPoints;
+				GetSelectedPoints(out selectedPoints);
+				rect = rect.FromPoints(selectedPoints);
+			}
+
+			foreach (int index in _selection) {
+				Vector2 offset = _shape2D.points[index] - rect.center;
+				offset.y *= -1;
+				_shape2D.points[index] = rect.center + offset;
+			}
+		}
+		catch (Exception e) {
+			Debug.LogError("ERROR: The parameter is not a valid boolean: " + global + "\n" + e);
+		}
 	}
 
 	private void HandleMouseEvents(Rect area) {
