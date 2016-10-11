@@ -104,9 +104,12 @@ public class Shape2D : ScriptableObject {
 
 	public void RecalculateNormal(int normalIndex) {
 		List<Vector2> lineDirections = new List<Vector2>();
-		for (int line = 0; line < lines.Length; line += 2)
-			if (lines[line] == normalIndex || lines[line + 1] == normalIndex)
+		for (int line = 0; line < lines.Length; line += 2) {
+			if (lines[line] == normalIndex)
+				lineDirections.Add(points[lines[line]] - points[lines[line + 1]]);
+			else if ((lines[line + 1] == normalIndex))
 				lineDirections.Add(points[lines[line + 1]] - points[lines[line]]);
+		}
 
 		if (lineDirections.Count == 0)
 			normals[normalIndex] = Vector2.up;
@@ -115,7 +118,7 @@ public class Shape2D : ScriptableObject {
 		else {
 			Vector2 normalSum = Vector2.zero;
 			foreach (Vector2 lineDireciton in lineDirections)
-				normalSum += lineDireciton;
+				normalSum += lineDireciton.normalized;
 			normals[normalIndex] = normalSum.normalized;
 		}
 	}
