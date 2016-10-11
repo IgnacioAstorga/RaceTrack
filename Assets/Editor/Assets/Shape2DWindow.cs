@@ -16,6 +16,7 @@ public class Shape2DWindow : EditorWindow {
 	private Vector2 _oldOffset;
 	private Vector2 _pointListScroll = Vector2.zero;
 	private bool _showingUs = false;
+	private Texture _previewTexture = null;
 
 	private float _pointRadius = 5f;
 	private float _lineWidth = 5f;
@@ -27,6 +28,8 @@ public class Shape2DWindow : EditorWindow {
 	private float _shapeSelectorHeight = 20f;
 	private float _upperRibbonHeight = 20f;
 	private float _pointsListWidth = 150f;
+	private float _textureSelectorHeight = 70f;
+	private float _previewTextureSize = -1f;
 	private float _selectedPanelHeight = 80f;
 	private float _selectedPanelWidth = 120f;
 
@@ -73,6 +76,10 @@ public class Shape2DWindow : EditorWindow {
 
 			// Draws the list of points
 			DrawPointsList();
+
+			// Draws the texture preview
+			if (_showingUs && _previewTexture != null)
+				DrawTexturePreview();
 
 			// Draws the main panel
 			DrawMainPanel();
@@ -218,6 +225,8 @@ public class Shape2DWindow : EditorWindow {
 		BeginArea(new Rect(0, _shapeSelectorHeight + _upperRibbonHeight, _pointsListWidth, CurrentArea.height - _shapeSelectorHeight - _upperRibbonHeight));
 
 		float labelWidth = EditorGUIUtility.labelWidth;
+		
+		BeginArea(new Rect(0, 0, CurrentArea.width, CurrentArea.height - (_showingUs ? _textureSelectorHeight : 0)));
 
 		if (!_showingUs)
 			_showingUs = GUILayout.Button("Points");
@@ -225,7 +234,6 @@ public class Shape2DWindow : EditorWindow {
 			_showingUs = !GUILayout.Button("Tex coords");
 
 		_pointListScroll = EditorGUILayout.BeginScrollView(_pointListScroll, false, false, GUIStyle.none, GUI.skin.verticalScrollbar, GUI.skin.textArea);
-		EditorGUILayout.BeginVertical();
 
 		EditorGUIUtility.labelWidth = 15;
 		for (int i = 0; i < _shape2D.points.Length; i++) {
@@ -243,10 +251,26 @@ public class Shape2DWindow : EditorWindow {
 			HandlePointsListEvents(rect, i);
 		}
 
-		EditorGUILayout.EndVertical();
+		// Clear selection when clicking on no point, without alt nor control pressed
+		Event current = Event.current;
+		Rect area = new Rect(0, 0, CurrentArea.width, CurrentArea.height);
+		if (current.type == EventType.MouseDown && current.button == 0 && !current.control && !current.alt && area.Contains(current.mousePosition))
+			_selection.Clear();
+
 		EditorGUILayout.EndScrollView();
 
-		EditorGUIUtility.labelWidth = labelWidth;
+		EndArea();
+
+		if (_showingUs) {
+			BeginArea(new Rect(0, CurrentArea.height - _textureSelectorHeight, CurrentArea.width, _textureSelectorHeight), GUI.skin.box);
+
+			EditorGUIUtility.labelWidth = 60;
+			_previewTexture = (Texture)EditorGUILayout.ObjectField("Texture", _previewTexture, typeof(Texture), false);
+
+			EditorGUIUtility.labelWidth = labelWidth;
+
+			EndArea();
+		}
 
 		EndArea();
 	}
@@ -346,8 +370,80 @@ public class Shape2DWindow : EditorWindow {
 		return new Rect(0, 0, CurrentArea.width, CurrentArea.height);
 	}
 
+	private void DrawTexturePreview() {
+		if (_previewTextureSize < 0)
+			_previewTextureSize = Mathf.Min(CurrentArea.height - _shapeSelectorHeight + _upperRibbonHeight, CurrentArea.width - _pointsListWidth) / 2;
+
+		// Draw texture preview
+		Rect area = new Rect(_pointsListWidth, _shapeSelectorHeight + _upperRibbonHeight, CurrentArea.width - _pointsListWidth, _previewTextureSize);
+		BeginArea(area);
+
+		float dimensions = Mathf.Min(area.height, area.width);
+		Rect textureArea = new Rect(0, 0, dimensions, dimensions);
+		BeginArea(textureArea);
+
+		GUI.DrawTexture(textureArea, _previewTexture);
+
+		for (int i = 0; i < _shape2D.us.Length; i++) {
+			if (!_selection.Contains(i)) {
+				Vector2 origin = textureArea.position;
+				origin.x += (textureArea.width - 1) * _shape2D.us[i];
+				Vector2 destination = origin;
+				destination.y += textureArea.height;
+				Handles.color = Color.green;
+				Handles.DrawLine(origin, destination);
+			}
+		}
+
+		foreach (int index in _selection) {
+			Vector2 origin = textureArea.position;
+			origin.x += (textureArea.width - 1) * _shape2D.us[index];
+			Vector2 destination = origin;
+			destination.y += textureArea.height;
+			Handles.color = Color.red;
+			Handles.DrawLine(origin, destination);
+		}
+
+		EndArea();
+
+		// Draw model preview
+
+		EndArea();
+
+		Rect resizeArea = new Rect(area.x, area.y + area.height - 5, area.width, 10);
+		EditorGUIUtility.AddCursorRect(resizeArea, MouseCursor.ResizeVertical);
+		HandleTexturePreviewEvents(resizeArea);
+	}
+
+	private void HandleTexturePreviewEvents(Rect resizeArea) {
+		int resizeAreaID = GUIUtility.GetControlID("PointList".GetHashCode(), FocusType.Passive);
+		Event current = Event.current;
+		switch (current.GetTypeForControl(resizeAreaID)) {
+			case EventType.MouseDown:
+				if (resizeArea.Contains(current.mousePosition) && current.button == 0) {
+					GUIUtility.hotControl = resizeAreaID;
+					current.Use();
+				}
+				break;
+			case EventType.MouseUp:
+				if (GUIUtility.hotControl == resizeAreaID && current.button == 0) {
+					GUIUtility.hotControl = 0;
+					current.Use();
+				}
+				break;
+			case EventType.MouseDrag:
+				if (GUIUtility.hotControl == resizeAreaID) {
+					_previewTextureSize = Mathf.Clamp(_previewTextureSize + current.delta.y, 10, position.height - _shapeSelectorHeight - _upperRibbonHeight - 10);
+				}
+				break;
+		}
+	}
+
 	private void DrawMainPanel() {
-		_mainAreaRect = new Rect(_pointsListWidth, _shapeSelectorHeight + _upperRibbonHeight, CurrentArea.width - _pointsListWidth, CurrentArea.height - _shapeSelectorHeight - _upperRibbonHeight);
+		if (_showingUs && _previewTexture != null)
+			_mainAreaRect = new Rect(_pointsListWidth, _shapeSelectorHeight + _upperRibbonHeight + _previewTextureSize, CurrentArea.width - _pointsListWidth, CurrentArea.height - _previewTextureSize - _shapeSelectorHeight - _upperRibbonHeight);
+		else
+			_mainAreaRect = new Rect(_pointsListWidth, _shapeSelectorHeight + _upperRibbonHeight, CurrentArea.width - _pointsListWidth, CurrentArea.height - _shapeSelectorHeight - _upperRibbonHeight);
 		BeginArea(_mainAreaRect);
 		
 		// Saves the offset and scale values. Transforms the values
@@ -391,6 +487,10 @@ public class Shape2DWindow : EditorWindow {
 
 		// Draws the selected object information
 		DrawSelected();
+
+		// Adds a border to the area
+		Handles.color = Color.white;
+		Handles.DrawSolidRectangleWithOutline(new Rect(0, 0, CurrentArea.width - 1, CurrentArea.height - 1), Color.clear, Color.gray);
 
 		EndArea();
 	}
