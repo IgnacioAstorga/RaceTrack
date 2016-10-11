@@ -201,9 +201,11 @@ public class Shape2DWindow : EditorWindow {
 			menu.AddItem(new GUIContent("Recalculate all normals"), false, RecalculateAllNormals);
 			if (HasSelection) {
 				menu.AddItem(new GUIContent("Recalculate selected normals"), false, RecalculateSelectedNormals);
+				menu.AddItem(new GUIContent("Invert selected normals"), false, InvertSelectedNormals);
 			}
 			else {
 				menu.AddDisabledItem(new GUIContent("Recalculate selected normals"));
+				menu.AddDisabledItem(new GUIContent("Invert selected normals"));
 			}
 			menu.ShowAsContext();
 		}
@@ -268,8 +270,10 @@ public class Shape2DWindow : EditorWindow {
 						menu.AddSeparator("");
 					}
 					menu.AddItem(new GUIContent("Recalculate normal"), false, RecalculateNormal, index);
+					menu.AddItem(new GUIContent("Invert normal"), false, InvertNormal, index);
 					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Recalculate selected normals"), false, RecalculateSelectedNormals);
+						menu.AddItem(new GUIContent("Invert selected normals"), false, InvertSelectedNormals);
 					}
 					menu.AddSeparator("");
 					menu.AddItem(new GUIContent("Break point"), false, BreakPoint, index);
@@ -495,8 +499,10 @@ public class Shape2DWindow : EditorWindow {
 						menu.AddSeparator("");
 					}
 					menu.AddItem(new GUIContent("Recalculate normal"), false, RecalculateNormal, index);
+					menu.AddItem(new GUIContent("Invert normal"), false, InvertNormal, index);
 					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Recalculate selected normals"), false, RecalculateSelectedNormals);
+						menu.AddItem(new GUIContent("Invert selected normals"), false, InvertSelectedNormals);
 					}
 					menu.AddSeparator("");
 					menu.AddItem(new GUIContent("Break point"), false, BreakPoint, index);
@@ -815,6 +821,20 @@ public class Shape2DWindow : EditorWindow {
 		}
 	}
 
+	private void InvertSelectedNormals() {
+		foreach (int index in _selection)
+			InvertNormal(index);
+	}
+
+	private void InvertNormal(object normalIndex) {
+		try {
+			_shape2D.normals[Convert.ToInt32(normalIndex)] *= -1;
+		}
+		catch (Exception e) {
+			Debug.LogError("ERROR: Invalid normal index: " + normalIndex + "\n" + e);
+		}
+	}
+
 	private void CenterSelection(object point) {
 		try {
 			Vector2 reference = ScreenToPoint((Vector2)point);
@@ -998,6 +1018,7 @@ public class Shape2DWindow : EditorWindow {
 					}
 					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Recalculate selected normals"), false, RecalculateSelectedNormals);
+						menu.AddItem(new GUIContent("Invert selected normals"), false, InvertSelectedNormals);
 						menu.AddSeparator("");
 					}
 					if (_selection.Count >= 1)
