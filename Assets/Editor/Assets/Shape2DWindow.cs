@@ -218,14 +218,15 @@ public class Shape2DWindow : EditorWindow {
 		BeginArea(new Rect(0, _shapeSelectorHeight + _upperRibbonHeight, _pointsListWidth, CurrentArea.height - _shapeSelectorHeight - _upperRibbonHeight));
 
 		float labelWidth = EditorGUIUtility.labelWidth;
-		
+
 		if (!_showingUs)
 			_showingUs = GUILayout.Button("Points");
 		else
 			_showingUs = !GUILayout.Button("Tex coords");
 
-		_pointListScroll = EditorGUILayout.BeginScrollView(_pointListScroll, GUI.skin.textArea);
+		_pointListScroll = EditorGUILayout.BeginScrollView(_pointListScroll, false, false, GUIStyle.none, GUI.skin.verticalScrollbar, GUI.skin.textArea);
 		EditorGUILayout.BeginVertical();
+
 		EditorGUIUtility.labelWidth = 15;
 		for (int i = 0; i < _shape2D.points.Length; i++) {
 			Rect rect = EditorGUILayout.BeginHorizontal();
@@ -235,16 +236,17 @@ public class Shape2DWindow : EditorWindow {
 			if (!_showingUs)
 				_shape2D.points[i] = EditorGUILayout.Vector2Field("", _shape2D.points[i]);
 			else
-				_shape2D.us[i] = EditorGUILayout.Slider(_shape2D.us[i], 0, 1, GUILayout.Width(120));
+				_shape2D.us[i] = EditorGUILayout.Slider(_shape2D.us[i], 0, 1, GUILayout.MinWidth(120));
 			EditorGUILayout.EndHorizontal();
 			EditorGUILayout.Separator();
 
 			HandlePointsListEvents(rect, i);
 		}
-		EditorGUILayout.EndScrollView();
-		EditorGUILayout.EndVertical();
 
-		EditorGUIUtility.fieldWidth = labelWidth;
+		EditorGUILayout.EndVertical();
+		EditorGUILayout.EndScrollView();
+
+		EditorGUIUtility.labelWidth = labelWidth;
 
 		EndArea();
 	}
