@@ -178,10 +178,12 @@ public class Shape2DWindow : EditorWindow {
 			if (_selection.Count >= 2) {
 				menu.AddItem(new GUIContent("Create line between selected points"), false, CreateLineBetweenSelectedPoints);
 				menu.AddItem(new GUIContent("Remove lines between selected points"), false, RemoveLinesBetweenSelectedPoints);
+				menu.AddItem(new GUIContent("Reverse lines between selected points"), false, ReverseSelectedLines); 
 			}
 			else {
 				menu.AddDisabledItem(new GUIContent("Create line between selected points"));
 				menu.AddDisabledItem(new GUIContent("Remove lines between selected points"));
+				menu.AddDisabledItem(new GUIContent("Reverse lines between selected points"));
 			}
 			menu.AddSeparator("");
 			if (_selection.Count >= 2) {
@@ -260,6 +262,7 @@ public class Shape2DWindow : EditorWindow {
 					if (_selection.Count >= 2) {
 						menu.AddItem(new GUIContent("Create line between selected points"), false, CreateLineBetweenSelectedPoints);
 						menu.AddItem(new GUIContent("Remove lines between selected points"), false, RemoveLinesBetweenSelectedPoints);
+						menu.AddItem(new GUIContent("Reverse lines between selected points"), false, ReverseSelectedLines);
 						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Divide selected lines"), false, DivideSelectedLines);
 						menu.AddSeparator("");
@@ -486,6 +489,7 @@ public class Shape2DWindow : EditorWindow {
 					if (_selection.Count >= 2) {
 						menu.AddItem(new GUIContent("Create line between selected points"), false, CreateLineBetweenSelectedPoints);
 						menu.AddItem(new GUIContent("Remove lines between selected points"), false, RemoveLinesBetweenSelectedPoints);
+						menu.AddItem(new GUIContent("Reverse lines between selected points"), false, ReverseSelectedLines);
 						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Divide selected lines"), false, DivideSelectedLines);
 						menu.AddSeparator("");
@@ -888,6 +892,20 @@ public class Shape2DWindow : EditorWindow {
 				_shape2D.RemoveLine(points[i], points[j]);
 	}
 
+	private void ReverseSelectedLines() {
+		if (_selection.Count < 2) {
+			Debug.LogWarning("WARNING: Attempted to reverse a line with an invalid number of points selected!");
+			return;
+		}
+		for (int line = 0; line < _shape2D.lines.Length; line += 2) {
+			if (_selection.Contains(_shape2D.lines[line]) && _selection.Contains(_shape2D.lines[line + 1])) {
+				int temp = _shape2D.lines[line];
+				_shape2D.lines[line] = _shape2D.lines[line + 1];
+				_shape2D.lines[line + 1] = temp;
+			}
+		}
+	}
+
 	private void DivideSelectedLines() {
 		if (_selection.Count < 2) {
 			Debug.LogWarning("WARNING: Attempted to remove a line with an invalid number of points selected!");
@@ -973,6 +991,7 @@ public class Shape2DWindow : EditorWindow {
 					if (_selection.Count >= 2) {
 						menu.AddItem(new GUIContent("Create line between selected points"), false, CreateLineBetweenSelectedPoints);
 						menu.AddItem(new GUIContent("Remove lines between selected points"), false, RemoveLinesBetweenSelectedPoints);
+						menu.AddItem(new GUIContent("Reverse lines between selected points"), false, ReverseSelectedLines);
 						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Divide selected lines"), false, DivideSelectedLines);
 						menu.AddSeparator("");
