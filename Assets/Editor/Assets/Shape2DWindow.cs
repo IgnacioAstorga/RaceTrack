@@ -35,6 +35,8 @@ public class Shape2DWindow : EditorWindow {
 
 	private Stack<Rect> _areas = new Stack<Rect>();
 	private Rect _mainAreaRect;
+	private ScenePreview _preview;
+	private Material _previewMaterial;
 
 	private Shape2D _shape2D;
 	
@@ -409,6 +411,25 @@ public class Shape2DWindow : EditorWindow {
 		EndArea();
 
 		// Draw model preview
+		BeginArea(new Rect(_previewTextureSize, 0, CurrentArea.width - _previewTextureSize, CurrentArea.height));
+		Rect previewArea = new Rect(0, 0, CurrentArea.width, CurrentArea.height);
+
+		if (_preview == null)
+			_preview = new ScenePreview();
+		_preview.ReadInput(previewArea);
+
+		if (Event.current.type == EventType.repaint) {
+
+			if (_previewMaterial == null)
+				_previewMaterial = new Material(Shader.Find("Unlit/Color NoCull"));
+
+			_preview.ClearModels();
+			_preview.AddModel(Shape2DEditor.MeshFromShape(_shape2D, 1), Matrix4x4.identity, _previewMaterial);
+
+			Texture render = _preview.GetSceneTexture(previewArea, GUI.skin.textArea);
+			GUI.DrawTexture(previewArea, render, ScaleMode.StretchToFill, false);
+		}
+		EndArea();
 
 		EndArea();
 

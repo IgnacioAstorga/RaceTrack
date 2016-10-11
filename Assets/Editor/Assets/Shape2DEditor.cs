@@ -52,7 +52,7 @@ public class Shape2DEditor : Editor {
 		return true;
 	}
 
-	private static Mesh MeshFromShape(Shape2D shape, int length) {
+	public static Mesh MeshFromShape(Shape2D shape, int length) {
 		// Creates the vertices
 		Vector3[] meshVertices = new Vector3[2 * shape.points.Length];
 		for (int i = 0; i < shape.points.Length; i++) {

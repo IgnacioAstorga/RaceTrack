@@ -44,6 +44,10 @@ public class ScenePreview {
 		_models.Add(model);
 	}
 
+	public void ClearModels() {
+		_models.Clear();
+	}
+
 	public void ReadInput(Rect position) {
 		int controlID = GUIUtility.GetControlID("Preview".GetHashCode(), FocusType.Passive);
 		Event current = Event.current;
