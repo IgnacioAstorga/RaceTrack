@@ -8,10 +8,8 @@ public class Shape2DEditor : Editor {
 
 	private Mesh _mesh;
 	private Material _material;
-	private PreviewRenderUtility _previewRenderUtility;
 
-	private Vector2 _drag = new Vector2(45, -25);
-	private float _distance = 15;
+	private ScenePreview _preview;
 
 	public override void OnInspectorGUI() {
 		base.OnInspectorGUI();
@@ -27,39 +25,28 @@ public class Shape2DEditor : Editor {
 	}
 
 	public override void OnPreviewGUI(Rect rectangle, GUIStyle background) {
-		ReadInput(rectangle);
-
-		if (Event.current.type == EventType.Repaint) {
-			_previewRenderUtility.BeginPreview(rectangle, background);
-			
-			_previewRenderUtility.DrawMesh(_mesh, Matrix4x4.identity, _material, 0);
-
-			_previewRenderUtility.m_Camera.transform.position = Vector2.zero;
-			_previewRenderUtility.m_Camera.transform.rotation = Quaternion.Euler(new Vector3(-_drag.y, -_drag.x, 0));
-			_previewRenderUtility.m_Camera.transform.position = _previewRenderUtility.m_Camera.transform.forward * -_distance;
-			_previewRenderUtility.m_Camera.Render();
-
-			Texture resultRender = _previewRenderUtility.EndPreview();
-			GUI.DrawTexture(rectangle, resultRender, ScaleMode.StretchToFill, false);
+		if (_preview != null) {
+			_preview.ReadInput(rectangle);
+			if (Event.current.type == EventType.Repaint) {
+				Texture resultRender = _preview.GetSceneTexture(rectangle, background);
+				GUI.DrawTexture(rectangle, resultRender, ScaleMode.StretchToFill, false);
+			}
 		}
 	}
 
 	void OnDestroy() {
-		if (_previewRenderUtility != null)
-			_previewRenderUtility.Cleanup();
+		if (_preview != null)
+			_preview.CleanUp();
 	}
 
 	public override bool HasPreviewGUI() {
 
 		_shape2D = (Shape2D)target;
 		_mesh = MeshFromShape(_shape2D, 1);
-
-		if (_previewRenderUtility == null) {
-			_previewRenderUtility = new PreviewRenderUtility();
-
-			_previewRenderUtility.m_Camera.transform.position = new Vector3(0, 0, -_distance);
-			_previewRenderUtility.m_Camera.transform.rotation = Quaternion.identity;
-			_previewRenderUtility.m_Camera.farClipPlane = 50;
+		
+		if (_preview == null && _material != null) {
+			_preview = new ScenePreview();
+			_preview.AddModel(_mesh, Matrix4x4.identity, _material);
 		}
 
 		return true;
@@ -113,41 +100,5 @@ public class Shape2DEditor : Editor {
 		mesh.RecalculateBounds();
 
 		return mesh;
-	}
-
-	public void ReadInput(Rect position) {
-		int controlID = GUIUtility.GetControlID("Slider".GetHashCode(), FocusType.Passive);
-		Event current = Event.current;
-		switch (current.GetTypeForControl(controlID)) {
-			case EventType.MouseDown:
-				if (position.Contains(current.mousePosition) && position.width > 50f) {
-					GUIUtility.hotControl = controlID;
-					current.Use();
-					EditorGUIUtility.SetWantsMouseJumping(1);
-				}
-				break;
-			case EventType.MouseUp:
-				if (GUIUtility.hotControl == controlID) {
-					GUIUtility.hotControl = 0;
-				}
-				EditorGUIUtility.SetWantsMouseJumping(0);
-				break;
-			case EventType.MouseDrag:
-				if (GUIUtility.hotControl == controlID) {
-					_drag -= current.delta * (float)((!current.shift) ? 1 : 3) / Mathf.Min(position.width, position.height) * 140f;
-					_drag.y = Mathf.Clamp(_drag.y, -90f, 90f);
-					current.Use();
-					GUI.changed = true;
-				}
-				break;
-			case EventType.ScrollWheel:
-				if (position.Contains(current.mousePosition)) {
-					_distance += current.delta.y;
-					_distance = Mathf.Max(0, _distance);
-					current.Use();
-					GUI.changed = true;
-				}
-				break;
-		}
 	}
 }
