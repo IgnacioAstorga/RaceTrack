@@ -642,6 +642,32 @@ public class Shape2DWindow : EditorWindow {
 		}
 	}
 
+	private void ExtrudePoint(object position) {
+		try {
+			if (_selection.Count != 1) {
+				Debug.LogWarning("WARNING: Can only extrude with a single point selected.");
+				return;
+			}
+
+			// Creates the point
+			_shape2D.AddPoint(ScreenToPoint((Vector2)position));
+
+			// Creates the line
+			foreach (int index in _selection) {
+				_shape2D.CreateLine(index, _shape2D.points.Length - 1);
+				_shape2D.RecalculateNormal(index);
+				_shape2D.RecalculateNormal(_shape2D.points.Length - 1);
+			}
+
+			// Selects the point
+			_selection.Clear();
+			_selection.Add(_shape2D.points.Length - 1);
+		}
+		catch (Exception e) {
+			Debug.LogError("ERROR: Invalid position: " + position + "\n" + e);
+		}
+	}
+
 	public void CopySelection() {
 		if (HasSelection) {
 			_clipboardPoints = new Vector2[_selection.Count];
@@ -935,6 +961,11 @@ public class Shape2DWindow : EditorWindow {
 			case EventType.ContextClick:
 				if (area.Contains(current.mousePosition) && !selectionArea.Contains(current.mousePosition)) {
 					GenericMenu menu = new GenericMenu();
+					if (_selection.Count == 1)
+						menu.AddItem(new GUIContent("Extrude point"), false, ExtrudePoint, current.mousePosition);
+					else
+						menu.AddDisabledItem(new GUIContent("Extrude point"));
+					menu.AddSeparator("");
 					menu.AddItem(new GUIContent("Create point"), false, CreatePoint, current.mousePosition);
 					if (_selection.Count >= 1)
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
