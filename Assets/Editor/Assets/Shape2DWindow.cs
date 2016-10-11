@@ -419,10 +419,11 @@ public class Shape2DWindow : EditorWindow {
 		_preview.ReadInput(previewArea);
 
 		if (Event.current.type == EventType.repaint) {
-
-			if (_previewMaterial == null)
+			if (_previewMaterial == null) {
 				_previewMaterial = new Material(Shader.Find("Unlit/Color NoCull"));
+			}
 
+			_previewMaterial.mainTexture = _previewTexture;
 			_preview.ClearModels();
 			_preview.AddModel(Shape2DEditor.MeshFromShape(_shape2D, 1), Matrix4x4.identity, _previewMaterial);
 

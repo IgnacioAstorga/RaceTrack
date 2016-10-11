@@ -71,7 +71,7 @@ public class Shape2DEditor : Editor {
 		Vector2[] meshUVs = new Vector2[2 * shape.us.Length];
 		for (int i = 0; i < shape.us.Length; i++) {
 			meshUVs[i] = new Vector3(shape.us[i], 0);
-			meshUVs[i + shape.us.Length] = new Vector3(shape.us[i], 0);
+			meshUVs[i + shape.us.Length] = new Vector3(shape.us[i], 1);
 		}
 
 		// Creates the triangles
