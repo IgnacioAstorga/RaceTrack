@@ -240,10 +240,17 @@ public class Shape2DWindow : EditorWindow {
 						menu.AddItem(new GUIContent("Copy point"), false, CopySelection);
 						menu.AddItem(new GUIContent("Cut point"), false, CutSelection);
 					}
-					else if (_selection.Count > 1) {
+					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
 					}
 					menu.AddSeparator("");
+					if (_selection.Count >= 2) {
+						menu.AddItem(new GUIContent("Create line between selected points"), false, CreateLineBetweenSelectedPoints);
+						menu.AddItem(new GUIContent("Remove lines between selected points"), false, RemoveLinesBetweenSelectedPoints);
+						menu.AddSeparator("");
+						menu.AddItem(new GUIContent("Divide selected lines"), false, DivideSelectedLines);
+						menu.AddSeparator("");
+					}
 					menu.AddItem(new GUIContent("Recalculate normal"), false, RecalculateNormal, index);
 					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Recalculate selected normals"), false, RecalculateSelectedNormals);
@@ -849,6 +856,7 @@ public class Shape2DWindow : EditorWindow {
 		}
 		int[] points = new int[_selection.Count];
 		_selection.CopyTo(points);
+		_selection.Clear();
 		for (int i = 0; i < points.Length; i++)
 			for (int j = i + 1; j < points.Length; j++)
 				if (_shape2D.AreConnected(points[i], points[j])) {
@@ -857,6 +865,7 @@ public class Shape2DWindow : EditorWindow {
 					_shape2D.normals[_shape2D.normals.Length - 1] = (_shape2D.normals[points[i]] + _shape2D.normals[points[j]]) / 2;
 					_shape2D.CreateLine(points[i], _shape2D.points.Length - 1);
 					_shape2D.CreateLine(points[j], _shape2D.points.Length - 1);
+					_selection.Add(_shape2D.points.Length - 1);
 				}
 	}
 
