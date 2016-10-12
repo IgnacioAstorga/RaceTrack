@@ -107,20 +107,19 @@ public class Shape2D : ScriptableObject {
 	public void RecalculateNormal(int normalIndex) {
 		List<Vector2> lineDirections = new List<Vector2>();
 		for (int line = 0; line < lines.Length; line += 2) {
-			if (lines[line] == normalIndex)
+			if (lines[line] == normalIndex || lines[line + 1] == normalIndex)
 				lineDirections.Add(points[lines[line]] - points[lines[line + 1]]);
-			else if ((lines[line + 1] == normalIndex))
-				lineDirections.Add(points[lines[line + 1]] - points[lines[line]]);
 		}
 
 		if (lineDirections.Count == 0)
 			normals[normalIndex] = Vector2.up;
-		else if (lineDirections.Count == 1)
-			normals[normalIndex] = Quaternion.Euler(0, 0, -90) * lineDirections[0];
 		else {
 			Vector2 normalSum = Vector2.zero;
-			foreach (Vector2 lineDireciton in lineDirections)
-				normalSum += lineDireciton.normalized;
+			foreach (Vector2 lineDirection in lineDirections) {
+				Vector2 normalized = lineDirection.normalized;
+				normalSum.x += normalized.y;
+				normalSum.y -= normalized.x;
+			}
 			normals[normalIndex] = normalSum.normalized;
 		}
 	}

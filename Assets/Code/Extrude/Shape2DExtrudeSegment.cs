@@ -27,11 +27,12 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		// Creates and populates the mesh
 		Mesh mesh = new Mesh();
 		mesh.vertices = CreateVertices();
-		mesh.normals = new Vector3[mesh.vertexCount];
+		mesh.normals = CreateNormals();
 		mesh.uv = new Vector2[mesh.vertexCount];
 		mesh.triangles = CreateTriangles();
+		mesh.RecalculateBounds();
 
-		_meshFilter.mesh = mesh;
+		_meshFilter.sharedMesh = mesh;
 	}
 
 	private Vector3[] CreateVertices() {
@@ -56,6 +57,27 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		return meshVertices;
 	}
 
+	private Vector3[] CreateNormals() {
+		// Creates the normals
+		Vector3[] meshNormals = new Vector3[_controlPoints.Length * shape.normals.Length];
+
+		// For each control point...
+		for (int controlPointIndex = 0; controlPointIndex < _controlPoints.Length; controlPointIndex++) {
+			// Caches some values
+			int meshNormalBaseIndex = controlPointIndex * shape.normals.Length;
+
+			// For each normal in the shape...
+			for (int shapeNormalIndex = 0; shapeNormalIndex < shape.normals.Length; shapeNormalIndex++) {
+				int meshNormalIndex = meshNormalBaseIndex + shapeNormalIndex;
+				meshNormals[meshNormalIndex] = Vector3.zero;
+				meshNormals[meshNormalIndex].x = shape.normals[shapeNormalIndex].x;
+				meshNormals[meshNormalIndex].y = shape.normals[shapeNormalIndex].y;
+			}
+		}
+
+		return meshNormals;
+	}
+
 	private int[] CreateTriangles() {
 		// Creates the vertices
 		int trianglesCount = 3 * (_controlPoints.Length - 1) * shape.lines.Length;
@@ -73,14 +95,14 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 				int currentTriangle = meshriangleBaseIndex + 3 * shapeLineIndex;
 
 				// Creates the first triangle
-				meshTriangles[currentTriangle] = meshVertexBaseIndex + shape.lines[shapeLineIndex];
+				meshTriangles[currentTriangle] = meshVertexNextBaseIndex + shape.lines[shapeLineIndex];
 				meshTriangles[currentTriangle + 1] = meshVertexBaseIndex + shape.lines[shapeLineIndex + 1];
-				meshTriangles[currentTriangle + 2] = meshVertexNextBaseIndex + shape.lines[shapeLineIndex];
+				meshTriangles[currentTriangle + 2] = meshVertexBaseIndex + shape.lines[shapeLineIndex];
 
 				// Creates the first triangle
-				meshTriangles[currentTriangle + 3] = meshVertexNextBaseIndex + shape.lines[shapeLineIndex];
+				meshTriangles[currentTriangle + 3] = meshVertexNextBaseIndex + shape.lines[shapeLineIndex + 1];
 				meshTriangles[currentTriangle + 4] = meshVertexBaseIndex + shape.lines[shapeLineIndex + 1];
-				meshTriangles[currentTriangle + 5] = meshVertexNextBaseIndex + shape.lines[shapeLineIndex + 1];
+				meshTriangles[currentTriangle + 5] = meshVertexNextBaseIndex + shape.lines[shapeLineIndex];
 			}
 		}
 
