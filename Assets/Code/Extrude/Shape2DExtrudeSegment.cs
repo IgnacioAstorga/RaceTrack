@@ -48,14 +48,12 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		// For each control point...
 		for (int controlPointIndex = 0; controlPointIndex < _controlPoints.Length; controlPointIndex++) {
 			// Caches some values
-			Vector3 controlPointLocalPosition = _controlPoints[controlPointIndex].GetPosition();
 			int meshVertexBaseIndex = controlPointIndex * shape.points.Length;
 
 			// For each point in the shape...
 			for (int shapePointIndex = 0; shapePointIndex < shape.points.Length; shapePointIndex++) {
 				int meshVertexIndex = meshVertexBaseIndex + shapePointIndex;
-				meshVertices[meshVertexIndex] = shape.points[shapePointIndex];
-				meshVertices[meshVertexIndex] += controlPointLocalPosition;
+				meshVertices[meshVertexIndex] = _controlPoints[controlPointIndex].TransformPoint(shape.points[shapePointIndex]);
 			}
 		}
 
