@@ -72,7 +72,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 			// For each normal in the shape...
 			for (int shapeNormalIndex = 0; shapeNormalIndex < shape.normals.Length; shapeNormalIndex++) {
 				int meshNormalIndex = meshNormalBaseIndex + shapeNormalIndex;
-				meshNormals[meshNormalIndex] = shape.normals[shapeNormalIndex];
+				meshNormals[meshNormalIndex] = _controlPoints[controlPointIndex].TransformDirection(shape.normals[shapeNormalIndex]);
 			}
 		}
 
