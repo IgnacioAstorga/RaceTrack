@@ -164,9 +164,11 @@ public class Shape2DWindow : EditorWindow {
 			GenericMenu menu = new GenericMenu();
 			menu.AddItem(new GUIContent("Create point"), false, CreatePoint, GetScreenCenter());
 			if (HasSelection) {
-				menu.AddItem(new GUIContent("Remove selected points"), false, DeleteSelectedPoints);
+				menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
+				menu.AddItem(new GUIContent("Remove selected points"), false, RemoveSelectedPoints);
 			}
 			else {
+				menu.AddDisabledItem(new GUIContent("Delete selected points"));
 				menu.AddDisabledItem(new GUIContent("Remove selected points"));
 			}
 			menu.AddSeparator("");
@@ -287,12 +289,14 @@ public class Shape2DWindow : EditorWindow {
 				if (area.Contains(current.mousePosition)) {
 					GenericMenu menu = new GenericMenu();
 					menu.AddItem(new GUIContent("Delete point"), false, DeletePoint, index);
+					menu.AddItem(new GUIContent("Remove point"), false, RemovePoint, index);
 					if (_selection.Count <= 1) {
 						menu.AddItem(new GUIContent("Copy point"), false, CopySelection);
 						menu.AddItem(new GUIContent("Cut point"), false, CutSelection);
 					}
 					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
+						menu.AddItem(new GUIContent("Remove selected points"), false, RemoveSelectedPoints);
 					}
 					menu.AddSeparator("");
 					if (_selection.Count >= 2) {
@@ -621,12 +625,14 @@ public class Shape2DWindow : EditorWindow {
 				if (area.Contains(current.mousePosition)) {
 					GenericMenu menu = new GenericMenu();
 					menu.AddItem(new GUIContent("Delete point"), false, DeletePoint, index);
+					menu.AddItem(new GUIContent("Remove point"), false, RemovePoint, index);
 					if (_selection.Count <= 1) {
 						menu.AddItem(new GUIContent("Copy point"), false, CopySelection);
 						menu.AddItem(new GUIContent("Cut point"), false, CutSelection);
 					}
 					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
+						menu.AddItem(new GUIContent("Remove selected points"), false, RemoveSelectedPoints);
 					}
 					menu.AddSeparator("");
 					if (_selection.Count >= 2) {
@@ -939,6 +945,41 @@ public class Shape2DWindow : EditorWindow {
 			DeletePoint(selectionCopy[i]);
 	}
 
+	private void RemovePoint(object pointIndex) {
+		try {
+			// Saves lines origins
+			int index = Convert.ToInt32(pointIndex);
+			List<int> lineOrigins = new List<int>();
+			for (int line = 0; line < _shape2D.lines.Length; line += 2) {
+				if (_shape2D.lines[line] == index && _shape2D.lines[line + 1] != index)
+					lineOrigins.Add(_shape2D.lines[line + 1]);
+				else if (_shape2D.lines[line] != index && _shape2D.lines[line + 1] == index)
+					lineOrigins.Add(_shape2D.lines[line]);
+			}
+
+			// Creates lines between them
+			for (int i = 0; i < lineOrigins.Count; i++) {
+				for (int j = i + 1; j < lineOrigins.Count; j++) {
+					_shape2D.CreateLine(lineOrigins[i], lineOrigins[j]);
+				}
+			}
+
+			// Removes the point
+			DeletePoint(pointIndex);
+		}
+		catch (Exception e) {
+			Debug.LogError("ERROR: Invalid point index: " + pointIndex + "\n" + e);
+		}
+	}
+
+	private void RemoveSelectedPoints() {
+		int[] selectionCopy = new int[_selection.Count];
+		_selection.CopyTo(selectionCopy);
+		Array.Sort(selectionCopy);
+		for (int i = selectionCopy.Length - 1; i >= 0; i--)
+			RemovePoint(selectionCopy[i]);
+	}
+
 	private void FocusSelection() {
 		// Calculates the containing rect
 		Rect containingRect = new Rect();
@@ -1158,8 +1199,10 @@ public class Shape2DWindow : EditorWindow {
 						menu.AddDisabledItem(new GUIContent("Extrude point"));
 					menu.AddSeparator("");
 					menu.AddItem(new GUIContent("Create point"), false, CreatePoint, current.mousePosition);
-					if (_selection.Count >= 1)
+					if (_selection.Count >= 1) {
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
+						menu.AddItem(new GUIContent("Remove selected points"), false, RemoveSelectedPoints);
+					}
 					menu.AddSeparator("");
 					if (_selection.Count >= 2) {
 						menu.AddItem(new GUIContent("Create line between selected points"), false, CreateLineBetweenSelectedPoints);
@@ -1269,7 +1312,10 @@ public class Shape2DWindow : EditorWindow {
 		switch (current.GetTypeForControl(keyID)) {
 			case EventType.KeyDown:
 				if (current.isKey && current.keyCode == KeyCode.Delete && HasSelection) {
-					DeleteSelectedPoints();
+					if (current.shift)
+						RemoveSelectedPoints();
+					else
+						DeleteSelectedPoints();
 					current.Use();
 				}
 				else if (current.isKey && current.keyCode == KeyCode.Escape && HasSelection) {
