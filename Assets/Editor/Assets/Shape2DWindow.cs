@@ -47,6 +47,7 @@ public class Shape2DWindow : EditorWindow {
 
 	private Vector2[] _clipboardPoints;
 	private Vector2[] _clipboardNormals;
+	private float[] _clipboardUs;
 	private int[] _clipboardLines;
 
 	[MenuItem("Window/Shape 2D Editor")]
@@ -745,25 +746,29 @@ public class Shape2DWindow : EditorWindow {
 	private void MergeSelectedPoints() {
 		Vector2 avg = Vector2.zero;
 		Vector2 normal = Vector2.zero;
+		float u = 0;
 		foreach (int index in _selection) {
 			avg += _shape2D.points[index];
 			normal += _shape2D.normals[index];
+			u += _shape2D.us[index];
 		}
 		avg /= _selection.Count;
-		MergePoints(avg, normal);
+		u /= _selection.Count;
+		normal = normal.normalized;
+		MergePoints(avg, normal, u);
 	}
 
 	private void MergePoints(object pointIndex) {
 		try {
 			int index = Convert.ToInt32(pointIndex);
-			MergePoints(_shape2D.points[index], _shape2D.normals[index]);
+			MergePoints(_shape2D.points[index], _shape2D.normals[index], _shape2D.us[index]);
 		}
 		catch (Exception e) {
 			Debug.LogError("ERROR: Invalid point index: " + pointIndex + "\n" + e);
 		}
 	}
 
-	private void MergePoints(Vector2 point, Vector2 normal) {
+	private void MergePoints(Vector2 point, Vector2 normal, float u) {
 		// Stores the lines to the selected points
 		List<int> lineOrigins = new List<int>();
 		for (int i = 0; i < _shape2D.lines.Length; i += 2) {
@@ -782,6 +787,7 @@ public class Shape2DWindow : EditorWindow {
 		_shape2D.AddPoint(point);
 		int pointIndex = _shape2D.points.Length - 1;
 		_shape2D.normals[pointIndex] = normal;
+		_shape2D.us[pointIndex] = u;
 
 		// Recreates the lines
 		foreach (int lineOrigin in lineOrigins)
@@ -818,11 +824,14 @@ public class Shape2DWindow : EditorWindow {
 			_shape2D.AddPoint(ScreenToPoint((Vector2)position));
 
 			// Creates the line
+			float u = 0;
 			foreach (int index in _selection) {
 				_shape2D.CreateLine(index, _shape2D.points.Length - 1);
 				_shape2D.RecalculateNormal(index);
-				_shape2D.RecalculateNormal(_shape2D.points.Length - 1);
+				u = _shape2D.us[index];
 			}
+			_shape2D.RecalculateNormal(_shape2D.points.Length - 1);
+			_shape2D.us[_shape2D.points.Length - 1] = u;
 
 			// Selects the point
 			_selection.Clear();
@@ -834,18 +843,20 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	private void CopySelectedPoints() {
-		CopySelection(out _clipboardPoints, out _clipboardNormals, out _clipboardLines);
+		CopySelection(out _clipboardPoints, out _clipboardNormals, out _clipboardUs, out _clipboardLines);
 	}
 
-	private void CopySelection(out Vector2[] points, out Vector2[] normals, out int[] lines) {
+	private void CopySelection(out Vector2[] points, out Vector2[] normals, out float[] us, out int[] lines) {
 		if (HasSelection) {
 			points = new Vector2[_selection.Count];
 			normals = new Vector2[_selection.Count];
+			us = new float[_selection.Count];
 			int[] indices = new int[_selection.Count];
 			int it = 0;
 			foreach (int index in _selection) {
 				points[it] = _shape2D.points[index];
 				normals[it] = _shape2D.normals[index];
+				us[it] = _shape2D.us[index];
 				indices[it] = index;
 				it++;
 			}
@@ -866,6 +877,7 @@ public class Shape2DWindow : EditorWindow {
 		else {
 			points = null;
 			normals = null;
+			us = null;
 			lines = null;
 		}
 	}
@@ -876,7 +888,7 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	private void PasteCopiedPoints() {
-		PastePoints(_clipboardPoints, _clipboardNormals, _clipboardLines, Vector2.zero);
+		PastePoints(_clipboardPoints, _clipboardNormals, _clipboardUs, _clipboardLines, Vector2.zero);
 	}
 
 	private void PasteCopiedPoints(object offset) {
@@ -884,14 +896,14 @@ public class Shape2DWindow : EditorWindow {
 			Rect containing = new Rect();
 			containing = containing.FromPoints(_clipboardPoints);
 			Vector2 displacement = ScreenToPoint((Vector2)offset) - containing.center;
-			PastePoints(_clipboardPoints, _clipboardNormals, _clipboardLines, displacement);
+			PastePoints(_clipboardPoints, _clipboardNormals, _clipboardUs, _clipboardLines, displacement);
 		}
 		catch (Exception e) {
 			Debug.LogError("ERROR: Invalid offset: " + offset + "\n" + e);
 		}
 	}
 
-	private void PastePoints(Vector2[] points, Vector2[] normals, int[] lines, Vector2 displacement) {
+	private void PastePoints(Vector2[] points, Vector2[] normals, float[] us, int[] lines, Vector2 displacement) {
 		_selection.Clear();
 		int originalLength = _shape2D.points.Length;
 		for (int i = 0; i < points.Length; i++) {
@@ -901,6 +913,9 @@ public class Shape2DWindow : EditorWindow {
 
 			// Copies the normal
 			_shape2D.normals[_shape2D.normals.Length - 1] = normals[i];
+
+			// Copies the u
+			_shape2D.us[_shape2D.normals.Length - 1] = us[i];
 		}
 
 		// Copies the lines
@@ -936,9 +951,10 @@ public class Shape2DWindow : EditorWindow {
 	private void DuplicateSelectedPoints() {
 		Vector2[] points;
 		Vector2[] normals;
+		float[] us;
 		int[] lines;
-		CopySelection(out points, out normals, out lines);
-		PastePoints(points, normals, lines, Vector2.zero);
+		CopySelection(out points, out normals, out us, out lines);
+		PastePoints(points, normals, us, lines, Vector2.zero);
 	}
 
 	private void DeletePoint(object pointIndex) {
@@ -1091,6 +1107,7 @@ public class Shape2DWindow : EditorWindow {
 			}
 			
 			Vector2 point = _shape2D.points[index];
+			float u = _shape2D.us[index];
 			_shape2D.DeletePoint(index);
 			for (int i = 0; i < lineOrigins.Count; i++)
 				if (lineOrigins[i] > index)
@@ -1099,6 +1116,7 @@ public class Shape2DWindow : EditorWindow {
 				_shape2D.AddPoint(point);
 				_shape2D.CreateLine(origin, _shape2D.points.Length - 1);
 				_shape2D.RecalculateNormal(_shape2D.points.Length - 1);
+				_shape2D.us[_shape2D.points.Length - 1] = u;
 			}
 		}
 		catch (Exception e) {
@@ -1158,6 +1176,7 @@ public class Shape2DWindow : EditorWindow {
 					_shape2D.RemoveLine(points[i], points[j]);
 					_shape2D.AddPoint((_shape2D.points[points[i]] + _shape2D.points[points[j]]) / 2);
 					_shape2D.normals[_shape2D.normals.Length - 1] = (_shape2D.normals[points[i]] + _shape2D.normals[points[j]]) / 2;
+					_shape2D.us[_shape2D.us.Length - 1] = (_shape2D.us[points[i]] + _shape2D.us[points[j]]) / 2;
 					_shape2D.CreateLine(points[i], _shape2D.points.Length - 1);
 					_shape2D.CreateLine(points[j], _shape2D.points.Length - 1);
 					_selection.Add(_shape2D.points.Length - 1);

@@ -24,6 +24,8 @@ public class Shape2D : ScriptableObject {
 
 		float[] newUs = new float[us.Length + positions.Length];
 		Array.Copy(us, newUs, us.Length);
+		for (int i = us.Length; i < newUs.Length; i++)
+			newUs[i] = 0;
 		us = newUs;
 	}
 
