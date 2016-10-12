@@ -119,8 +119,8 @@ public class Shape2DWindow : EditorWindow {
 		if (GUILayout.Button("Edit")) {
 			GenericMenu menu = new GenericMenu();
 			if (HasSelection) {
-				menu.AddItem(new GUIContent("Copy selected points"), false, CopySelection);
-				menu.AddItem(new GUIContent("Cut selected points"), false, CutSelection);
+				menu.AddItem(new GUIContent("Copy selected points"), false, CopySelectedPoints);
+				menu.AddItem(new GUIContent("Cut selected points"), false, CutSelectedPoints);
 			}
 			else {
 				menu.AddDisabledItem(new GUIContent("Copy selected points"));
@@ -145,12 +145,18 @@ public class Shape2DWindow : EditorWindow {
 			}
 			menu.AddSeparator("");
 			if (HasSelection) {
+				menu.AddItem(new GUIContent("Symmetrify selection horizontally"), false, SymmetryHorizontal);
+				menu.AddItem(new GUIContent("Symmetrify selection vertically"), false, SymmetryVertical);
+				menu.AddSeparator("");
 				menu.AddItem(new GUIContent("Mirror selection horizontally global"), false, MirrorSelectionHorizontal, true);
 				menu.AddItem(new GUIContent("Mirror selection vertically global"), false, MirrorSelectionVertical, true);
 				menu.AddItem(new GUIContent("Mirror selection horizontally local"), false, MirrorSelectionHorizontal, false);
 				menu.AddItem(new GUIContent("Mirror selection vertically local"), false, MirrorSelectionVertical, false);
 			}
 			else {
+				menu.AddDisabledItem(new GUIContent("Symmetrify selection horizontally"));
+				menu.AddDisabledItem(new GUIContent("Symmetrify selection vertically"));
+				menu.AddSeparator("");
 				menu.AddDisabledItem(new GUIContent("Mirror selection horizontally global"));
 				menu.AddDisabledItem(new GUIContent("Mirror selection vertically global"));
 				menu.AddDisabledItem(new GUIContent("Mirror selection horizontally local"));
@@ -291,8 +297,8 @@ public class Shape2DWindow : EditorWindow {
 					menu.AddItem(new GUIContent("Delete point"), false, DeletePoint, index);
 					menu.AddItem(new GUIContent("Remove point"), false, RemovePoint, index);
 					if (_selection.Count <= 1) {
-						menu.AddItem(new GUIContent("Copy point"), false, CopySelection);
-						menu.AddItem(new GUIContent("Cut point"), false, CutSelection);
+						menu.AddItem(new GUIContent("Copy point"), false, CopySelectedPoints);
+						menu.AddItem(new GUIContent("Cut point"), false, CutSelectedPoints);
 					}
 					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
@@ -320,8 +326,8 @@ public class Shape2DWindow : EditorWindow {
 						menu.AddItem(new GUIContent("Shrink selected points into this one"), false, ShrinkPoints, point);
 						menu.AddItem(new GUIContent("Merge selected points into this one"), false, MergePoints, index);
 						menu.AddSeparator("");
-						menu.AddItem(new GUIContent("Copy selected points"), false, CopySelection);
-						menu.AddItem(new GUIContent("Cut selected points"), false, CutSelection);
+						menu.AddItem(new GUIContent("Copy selected points"), false, CopySelectedPoints);
+						menu.AddItem(new GUIContent("Cut selected points"), false, CutSelectedPoints);
 					}
 					menu.AddSeparator("");
 					if (HasClipboard) {
@@ -627,8 +633,8 @@ public class Shape2DWindow : EditorWindow {
 					menu.AddItem(new GUIContent("Delete point"), false, DeletePoint, index);
 					menu.AddItem(new GUIContent("Remove point"), false, RemovePoint, index);
 					if (_selection.Count <= 1) {
-						menu.AddItem(new GUIContent("Copy point"), false, CopySelection);
-						menu.AddItem(new GUIContent("Cut point"), false, CutSelection);
+						menu.AddItem(new GUIContent("Copy point"), false, CopySelectedPoints);
+						menu.AddItem(new GUIContent("Cut point"), false, CutSelectedPoints);
 					}
 					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
@@ -656,8 +662,8 @@ public class Shape2DWindow : EditorWindow {
 						menu.AddItem(new GUIContent("Shrink selected points into this one"), false, ShrinkPoints, point);
 						menu.AddItem(new GUIContent("Merge selected points into this one"), false, MergePoints, index);
 						menu.AddSeparator("");
-						menu.AddItem(new GUIContent("Copy selected points"), false, CopySelection);
-						menu.AddItem(new GUIContent("Cut selected points"), false, CutSelection);
+						menu.AddItem(new GUIContent("Copy selected points"), false, CopySelectedPoints);
+						menu.AddItem(new GUIContent("Cut selected points"), false, CutSelectedPoints);
 					}
 					menu.AddSeparator("");
 					if (HasClipboard) {
@@ -827,46 +833,50 @@ public class Shape2DWindow : EditorWindow {
 		}
 	}
 
-	public void CopySelection() {
+	private void CopySelectedPoints() {
+		CopySelection(out _clipboardPoints, out _clipboardNormals, out _clipboardLines);
+	}
+
+	private void CopySelection(out Vector2[] points, out Vector2[] normals, out int[] lines) {
 		if (HasSelection) {
-			_clipboardPoints = new Vector2[_selection.Count];
-			_clipboardNormals = new Vector2[_selection.Count];
+			points = new Vector2[_selection.Count];
+			normals = new Vector2[_selection.Count];
 			int[] indices = new int[_selection.Count];
 			int it = 0;
 			foreach (int index in _selection) {
-				_clipboardPoints[it] = _shape2D.points[index];
-				_clipboardNormals[it] = _shape2D.normals[index];
+				points[it] = _shape2D.points[index];
+				normals[it] = _shape2D.normals[index];
 				indices[it] = index;
 				it++;
 			}
-			List<int> lines = new List<int>();
+			List<int> lineList = new List<int>();
 			for (int line = 0; line < _shape2D.lines.Length; line += 2) {
 				for (int i = 0; i < indices.Length; i++) {
 					for (int j = i + 1; j < indices.Length; j++) {
 						if ((_shape2D.lines[line] == indices[i] && _shape2D.lines[line + 1] == indices[j]) ||
 							(_shape2D.lines[line] == indices[j] && _shape2D.lines[line + 1] == indices[i])) {
-							lines.Add(i);
-							lines.Add(j);
+							lineList.Add(i);
+							lineList.Add(j);
 						}
 					}
 				}
 			}
-			_clipboardLines = lines.ToArray();
+			lines = lineList.ToArray();
 		}
 		else {
-			_clipboardPoints = null;
-			_clipboardNormals = null;
-			_clipboardLines = null;
+			points = null;
+			normals = null;
+			lines = null;
 		}
 	}
 
-	private void CutSelection() {
-		CopySelection();
+	private void CutSelectedPoints() {
+		CopySelectedPoints();
 		DeleteSelectedPoints();
 	}
 
 	private void PasteCopiedPoints() {
-		PasteCopiedPoints(Vector2.zero);
+		PastePoints(_clipboardPoints, _clipboardNormals, _clipboardLines, Vector2.zero);
 	}
 
 	private void PasteCopiedPoints(object offset) {
@@ -874,28 +884,28 @@ public class Shape2DWindow : EditorWindow {
 			Rect containing = new Rect();
 			containing = containing.FromPoints(_clipboardPoints);
 			Vector2 displacement = ScreenToPoint((Vector2)offset) - containing.center;
-			PasteCopiedPoints(displacement);
+			PastePoints(_clipboardPoints, _clipboardNormals, _clipboardLines, displacement);
 		}
 		catch (Exception e) {
 			Debug.LogError("ERROR: Invalid offset: " + offset + "\n" + e);
 		}
 	}
 
-	private void PasteCopiedPoints(Vector2 displacement) {
+	private void PastePoints(Vector2[] points, Vector2[] normals, int[] lines, Vector2 displacement) {
 		_selection.Clear();
 		int originalLength = _shape2D.points.Length;
-		for (int i = 0; i < _clipboardPoints.Length; i++) {
+		for (int i = 0; i < points.Length; i++) {
 			// Copies the point
-			_shape2D.AddPoint(displacement + _clipboardPoints[i]);
+			_shape2D.AddPoint(displacement + points[i]);
 			_selection.Add(_shape2D.points.Length - 1);
 
 			// Copies the normal
-			_shape2D.normals[_shape2D.normals.Length - 1] = _clipboardNormals[i];
+			_shape2D.normals[_shape2D.normals.Length - 1] = normals[i];
 		}
 
 		// Copies the lines
-		for (int line = 0; line < _clipboardLines.Length; line += 2)
-			_shape2D.CreateLine(originalLength + _clipboardLines[line], originalLength + _clipboardLines[line + 1]);
+		for (int line = 0; line < lines.Length; line += 2)
+			_shape2D.CreateLine(originalLength + lines[line], originalLength + lines[line + 1]);
 	}
 
 	private void PastePointCoordinates(object pointIndex) {
@@ -911,6 +921,24 @@ public class Shape2DWindow : EditorWindow {
 		catch (Exception e) {
 			Debug.LogError("ERROR: Invalid point index: " + pointIndex + "\n" + e);
 		}
+	}
+
+	private void SymmetryHorizontal() {
+		DuplicateSelectedPoints();
+		MirrorSelectionHorizontal(true);
+	}
+
+	private void SymmetryVertical() {
+		DuplicateSelectedPoints();
+		MirrorSelectionVertical(true);
+	}
+
+	private void DuplicateSelectedPoints() {
+		Vector2[] points;
+		Vector2[] normals;
+		int[] lines;
+		CopySelection(out points, out normals, out lines);
+		PastePoints(points, normals, lines, Vector2.zero);
 	}
 
 	private void DeletePoint(object pointIndex) {
@@ -958,11 +986,9 @@ public class Shape2DWindow : EditorWindow {
 			}
 
 			// Creates lines between them
-			for (int i = 0; i < lineOrigins.Count; i++) {
-				for (int j = i + 1; j < lineOrigins.Count; j++) {
+			for (int i = 0; i < lineOrigins.Count; i++)
+				for (int j = i + 1; j < lineOrigins.Count; j++)
 					_shape2D.CreateLine(lineOrigins[i], lineOrigins[j]);
-				}
-			}
 
 			// Removes the point
 			DeletePoint(pointIndex);
@@ -1223,8 +1249,8 @@ public class Shape2DWindow : EditorWindow {
 						menu.AddItem(new GUIContent("Shrink selected points"), false, ShrinkSelectedPoints);
 						menu.AddItem(new GUIContent("Merge selected points"), false, MergeSelectedPoints);
 						menu.AddSeparator("");
-						menu.AddItem(new GUIContent("Copy selected points"), false, CopySelection);
-						menu.AddItem(new GUIContent("Cut selected points"), false, CutSelection);
+						menu.AddItem(new GUIContent("Copy selected points"), false, CopySelectedPoints);
+						menu.AddItem(new GUIContent("Cut selected points"), false, CutSelectedPoints);
 						menu.AddSeparator("");
 					}
 					if (HasClipboard) {
@@ -1326,10 +1352,10 @@ public class Shape2DWindow : EditorWindow {
 					FocusSelection();
 				}
 				else if (current.isKey && current.control && current.keyCode == KeyCode.X && HasSelection) {
-					CutSelection();
+					CutSelectedPoints();
 				}
 				else if (current.isKey && current.control && current.keyCode == KeyCode.C && HasSelection) {
-					CopySelection();
+					CopySelectedPoints();
 				}
 				else if (current.isKey && current.control && current.keyCode == KeyCode.V && HasClipboard) {
 					PasteCopiedPoints();
