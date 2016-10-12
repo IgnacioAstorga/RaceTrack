@@ -1,17 +1,18 @@
 ﻿using UnityEngine;
 
 [RequireComponent(typeof(MeshFilter))]
+[ExecuteInEditMode]
 public class Shape2DExtrudeSegment : MonoBehaviour {
 
 	public Shape2D shape;
 
-	private Transform[] _controlPoints;
+	private Shape2DExtrudeControlPoint[] _controlPoints;
 
 	private MeshFilter _meshFilter;
 
 	void Awake() {
 		_meshFilter = GetComponent<MeshFilter>();
-		_controlPoints = this.GetComponentsInChildrenOnly<Transform>();
+		_controlPoints = this.GetComponentsInChildrenOnly<Shape2DExtrudeControlPoint>();
 	}
 	
 	void Start() {
@@ -21,6 +22,11 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		}
 
 		ExtrudeShape();
+	}
+
+	void Update() {
+		if (!Application.isPlaying)
+			ExtrudeShape();
 	}
 
 	private void ExtrudeShape() {
@@ -42,7 +48,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		// For each control point...
 		for (int controlPointIndex = 0; controlPointIndex < _controlPoints.Length; controlPointIndex++) {
 			// Caches some values
-			Vector3 controlPointLocalPosition = _controlPoints[controlPointIndex].localPosition;
+			Vector3 controlPointLocalPosition = _controlPoints[controlPointIndex].GetPosition();
 			int meshVertexBaseIndex = controlPointIndex * shape.points.Length;
 
 			// For each point in the shape...
@@ -127,12 +133,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 	}
 
 	void OnDrawGizmos() {
-		if (Application.isPlaying)
-			return;
-
-		Awake();
-		Start();
 		for (int controlPointIndex = 0; controlPointIndex < _controlPoints.Length - 1; controlPointIndex++)
-			Gizmos.DrawLine(_controlPoints[controlPointIndex].position, _controlPoints[controlPointIndex + 1].position);
+			Gizmos.DrawLine(_controlPoints[controlPointIndex].transform.position, _controlPoints[controlPointIndex + 1].transform.position);
 	}
 }
