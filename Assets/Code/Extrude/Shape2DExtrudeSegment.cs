@@ -28,7 +28,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		Mesh mesh = new Mesh();
 		mesh.vertices = CreateVertices();
 		mesh.normals = CreateNormals();
-		mesh.uv = new Vector2[mesh.vertexCount];
+		mesh.uv = CreateUVs();
 		mesh.triangles = CreateTriangles();
 		mesh.RecalculateBounds();
 
@@ -48,9 +48,8 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 			// For each point in the shape...
 			for (int shapePointIndex = 0; shapePointIndex < shape.points.Length; shapePointIndex++) {
 				int meshVertexIndex = meshVertexBaseIndex + shapePointIndex;
-				meshVertices[meshVertexIndex] = controlPointLocalPosition;
-				meshVertices[meshVertexIndex].x += shape.points[shapePointIndex].x;
-				meshVertices[meshVertexIndex].y += shape.points[shapePointIndex].y;
+				meshVertices[meshVertexIndex] = shape.points[shapePointIndex];
+				meshVertices[meshVertexIndex] += controlPointLocalPosition;
 			}
 		}
 
@@ -69,13 +68,31 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 			// For each normal in the shape...
 			for (int shapeNormalIndex = 0; shapeNormalIndex < shape.normals.Length; shapeNormalIndex++) {
 				int meshNormalIndex = meshNormalBaseIndex + shapeNormalIndex;
-				meshNormals[meshNormalIndex] = Vector3.zero;
-				meshNormals[meshNormalIndex].x = shape.normals[shapeNormalIndex].x;
-				meshNormals[meshNormalIndex].y = shape.normals[shapeNormalIndex].y;
+				meshNormals[meshNormalIndex] = shape.normals[shapeNormalIndex];
 			}
 		}
 
 		return meshNormals;
+	}
+
+	private Vector2[] CreateUVs() {
+		// Creates the UVs
+		Vector2[] meshUVs = new Vector2[_controlPoints.Length * shape.us.Length];
+
+		// For each control point...
+		for (int controlPointIndex = 0; controlPointIndex < _controlPoints.Length; controlPointIndex++) {
+			// Caches some values
+			int meshUVBaseIndex = controlPointIndex * shape.us.Length;
+			float interpolatedV = (float)controlPointIndex / (_controlPoints.Length - 1);
+
+			// For each normal in the shape...
+			for (int shapeUIndex = 0; shapeUIndex < shape.us.Length; shapeUIndex++) {
+				int meshUVIndex = meshUVBaseIndex + shapeUIndex;
+				meshUVs[meshUVIndex] = new Vector2(shape.us[shapeUIndex], interpolatedV);
+			}
+		}
+
+		return meshUVs;
 	}
 
 	private int[] CreateTriangles() {
