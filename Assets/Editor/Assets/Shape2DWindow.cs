@@ -121,29 +121,29 @@ public class Shape2DWindow : EditorWindow {
 		if (GUILayout.Button("Edit")) {
 			GenericMenu menu = new GenericMenu();
 			if (HasSelection) {
-				menu.AddItem(new GUIContent("Copy selected points"), false, CopySelectedPoints);
-				menu.AddItem(new GUIContent("Cut selected points"), false, CutSelectedPoints);
+				menu.AddItem(new GUIContent("Copy selected points #c"), false, CopySelectedPoints);
+				menu.AddItem(new GUIContent("Cut selected points #x"), false, CutSelectedPoints);
 			}
 			else {
-				menu.AddDisabledItem(new GUIContent("Copy selected points"));
-				menu.AddDisabledItem(new GUIContent("Cut selected points"));
+				menu.AddDisabledItem(new GUIContent("Copy selected points #c"));
+				menu.AddDisabledItem(new GUIContent("Cut selected points #x"));
 			}
 			if (HasClipboard) {
-				menu.AddItem(new GUIContent("Paste copied points"), false, PasteCopiedPoints);
+				menu.AddItem(new GUIContent("Paste copied points #v"), false, PasteCopiedPoints);
 			}
 			else {
-				menu.AddDisabledItem(new GUIContent("Paste copied points"));
+				menu.AddDisabledItem(new GUIContent("Paste copied points #v"));
 			}
 			menu.AddSeparator("");
 			if (HasSelection) {
-				menu.AddItem(new GUIContent("Focus selected points"), false, FocusSelection);
-				menu.AddItem(new GUIContent("Center selection on origin"), false, CenterSelection, PointToScreen(Vector2.zero));
-				menu.AddItem(new GUIContent("Center selection on screen"), false, CenterSelection, GetScreenCenter());
+				menu.AddItem(new GUIContent("Focus selected points _f"), false, FocusSelection);
+				menu.AddItem(new GUIContent("Center selection on origin #o"), false, CenterSelection, PointToScreen(Vector2.zero));
+				menu.AddItem(new GUIContent("Center selection on screen #s"), false, CenterSelection, GetScreenCenter());
 			}
 			else {
-				menu.AddDisabledItem(new GUIContent("Focus selected points"));
-				menu.AddDisabledItem(new GUIContent("Center selection on origin"));
-				menu.AddDisabledItem(new GUIContent("Center selection on screen"));
+				menu.AddDisabledItem(new GUIContent("Focus selected points _f"));
+				menu.AddDisabledItem(new GUIContent("Center selection on origin #o"));
+				menu.AddDisabledItem(new GUIContent("Center selection on screen #s"));
 			}
 			menu.AddSeparator("");
 			if (HasSelection) {
@@ -386,7 +386,8 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	private Vector2 GetScreenCenter() {
-		return _mainAreaRect.center - Vector2.up * (_shapeSelectorHeight + _upperRibbonHeight);
+		Vector2 center = new Vector2(_mainAreaRect.width / 2, _mainAreaRect.height / 2);
+		return center - Vector2.up * (_shapeSelectorHeight + _upperRibbonHeight);
 	}
 
 	private Rect GetCurrentAreaSelectionRect() {
@@ -1506,14 +1507,20 @@ public class Shape2DWindow : EditorWindow {
 				else if (current.isKey && current.keyCode == KeyCode.F && HasSelection) {
 					FocusSelection();
 				}
-				else if (current.isKey && current.control && current.keyCode == KeyCode.X && HasSelection) {
+				else if (current.isKey && current.shift && current.keyCode == KeyCode.X && HasSelection) {
 					CutSelectedPoints();
 				}
-				else if (current.isKey && current.control && current.keyCode == KeyCode.C && HasSelection) {
+				else if (current.isKey && current.shift && current.keyCode == KeyCode.C && HasSelection) {
 					CopySelectedPoints();
 				}
-				else if (current.isKey && current.control && current.keyCode == KeyCode.V && HasClipboard) {
+				else if (current.isKey && current.shift && current.keyCode == KeyCode.V && HasClipboard) {
 					PasteCopiedPoints();
+				}
+				else if (current.isKey && current.shift && current.keyCode == KeyCode.O && HasSelection) {
+					CenterSelection(PointToScreen(Vector2.zero));
+				}
+				else if (current.isKey && current.shift && current.keyCode == KeyCode.S && HasSelection) {
+					CenterSelection(GetScreenCenter());
 				}
 				break;
 		}
