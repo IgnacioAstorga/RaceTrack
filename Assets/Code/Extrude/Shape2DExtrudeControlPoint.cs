@@ -40,6 +40,7 @@ public class Shape2DExtrudeControlPoint : MonoBehaviour {
 	}
 
 	void OnDrawGizmos() {
+		Gizmos.color = Color.cyan;
 		Gizmos.DrawSphere(transform.position, gizmosRadius);
 	}
 }

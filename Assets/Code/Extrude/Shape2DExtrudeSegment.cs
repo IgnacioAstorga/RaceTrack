@@ -6,6 +6,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 
 	public Shape2D shape;
 	public int resolution = 5;
+	public bool recalculateNormals = true;
 
 	private Shape2DExtrudeControlPoint[] _controlPoints;
 
@@ -46,9 +47,14 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		// Creates and populates the mesh
 		Mesh mesh = new Mesh();
 		mesh.vertices = CreateVertices();
-		mesh.normals = CreateNormals();
 		mesh.uv = CreateUVs();
 		mesh.triangles = CreateTriangles();
+
+		// Calculates the mesh's normals
+		if (recalculateNormals)
+			mesh.RecalculateNormals();
+		else
+			mesh.normals = CreateNormals();
 
 		// Recalculates the mesh's bounds
 		mesh.RecalculateBounds();
@@ -221,15 +227,8 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 	}
 
 	void OnDrawGizmos() {
+		Gizmos.color = Color.green;
 		for (int controlPointIndex = 0; controlPointIndex < _controlPoints.Length - 1; controlPointIndex++)
 			Gizmos.DrawLine(_controlPoints[controlPointIndex].transform.position, _controlPoints[controlPointIndex + 1].transform.position);
-
-		if (_meshFilter.sharedMesh != null) {
-			Mesh mesh = _meshFilter.sharedMesh;
-			Vector3[] vertices = mesh.vertices;
-			for (int i = 0; i < vertices.Length; i++) {
-				Gizmos.DrawSphere(transform.TransformPoint(vertices[i]), 0.1f);
-			}
-		}
 	}
 }
