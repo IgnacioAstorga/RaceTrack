@@ -1,12 +1,27 @@
 ﻿using UnityEngine;
+using System;
 
 [RequireComponent(typeof(MeshFilter))]
 [ExecuteInEditMode]
 public class Shape2DExtrudeSegment : MonoBehaviour {
 
+	public enum ControlPointRotation {
+		Manual,
+		AutomaticNormals,
+		AutomaticOrientation,
+		AutomaticBoth
+	}
+
+	public enum InterpolationMethod {
+		Linear,
+		Bezier
+	}
+
 	public Shape2D shape;
 	public int resolution = 5;
+	public InterpolationMethod interpolationMethod = InterpolationMethod.Bezier;
 	public bool recalculateNormals = true;
+	public ControlPointRotation controlPointRotation = ControlPointRotation.Manual;
 
 	private Shape2DExtrudeControlPoint[] _controlPoints;
 
@@ -26,6 +41,9 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 			return;
 		}
 
+		// Calculates the rotation of the control points
+		CalculateControlPointsRotation();
+
 		// Extrudes the shape using the control points
 		ExtrudeShape();
 	}
@@ -34,6 +52,43 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		if (!Application.isPlaying) {
 			Awake();
 			Start();
+		}
+	}
+
+	public Shape2DExtrudeControlPoint[] GetControlPoints() {
+		return _controlPoints;
+	}
+
+	private void CalculateControlPointsRotation() {
+		for (int controlPointIndex = 1; controlPointIndex < _controlPoints.Length - 1; controlPointIndex++) {
+
+			Vector3 directionFromPrevious = _controlPoints[controlPointIndex].GetPosition() - _controlPoints[controlPointIndex - 1].GetPosition();
+			Vector3 directionToNext = _controlPoints[controlPointIndex + 1].GetPosition() - _controlPoints[controlPointIndex].GetPosition();
+
+			Vector3 tangentDirection = directionFromPrevious + directionToNext;
+			Vector3 normalDirection = Vector3.Cross(directionFromPrevious, directionToNext);
+			Vector3 upDirection = _controlPoints[controlPointIndex].GetUpDirection();
+			Vector3 forwardDirection = _controlPoints[controlPointIndex].GetForwardDirection();
+
+			Quaternion rotation;
+			switch (controlPointRotation) {
+				case ControlPointRotation.Manual:
+					rotation = _controlPoints[controlPointIndex].GetRotation();
+					break;
+				case ControlPointRotation.AutomaticNormals:
+					rotation = Quaternion.LookRotation(forwardDirection, normalDirection);
+					break;
+				case ControlPointRotation.AutomaticOrientation:
+					rotation = Quaternion.LookRotation(tangentDirection, upDirection);
+					break;
+				case ControlPointRotation.AutomaticBoth:
+					rotation = Quaternion.LookRotation(tangentDirection, normalDirection);
+					break;
+				default:
+					throw new InvalidOperationException("The selected rotation method is not supported: " + controlPointRotation);
+			}
+
+			_controlPoints[controlPointIndex].GetTransform().localRotation = rotation;
 		}
 	}
 
@@ -209,14 +264,29 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		Shape2DExtrudeControlPoint startControlPoint = _controlPoints[Mathf.FloorToInt(interpolationFactor)];
 		Shape2DExtrudeControlPoint endControlPoint = _controlPoints[Mathf.CeilToInt(interpolationFactor)];
 		float lerpFactor = interpolationFactor - Mathf.Floor(interpolationFactor);
-		return Vector3.Lerp(startControlPoint.GetPosition(), endControlPoint.GetPosition(), lerpFactor);
+		switch (interpolationMethod) {
+			case InterpolationMethod.Linear:
+				return Vector3.Lerp(startControlPoint.GetPosition(), endControlPoint.GetPosition(), lerpFactor);
+			case InterpolationMethod.Bezier:
+				return BezierCurve.BezierPosition(startControlPoint.GetPosition(), startControlPoint.GetForwardHandlePosition(), endControlPoint.GetPosition(), endControlPoint.GetBackwardHandlePosition(), lerpFactor);
+			default:
+				throw new InvalidOperationException("The current interpolation method is not supported: " + interpolationMethod);
+		}
 	}
 
 	public Quaternion InterpolateRotation(float interpolationFactor) {
 		Shape2DExtrudeControlPoint startControlPoint = _controlPoints[Mathf.FloorToInt(interpolationFactor)];
 		Shape2DExtrudeControlPoint endControlPoint = _controlPoints[Mathf.CeilToInt(interpolationFactor)];
 		float lerpFactor = interpolationFactor - Mathf.Floor(interpolationFactor);
-		return Quaternion.Lerp(startControlPoint.GetRotation(), endControlPoint.GetRotation(), lerpFactor);
+		switch (interpolationMethod) {
+			case InterpolationMethod.Linear:
+				return Quaternion.Lerp(startControlPoint.GetRotation(), endControlPoint.GetRotation(), lerpFactor);
+			case InterpolationMethod.Bezier:
+				Vector3 upDirection = Vector3.Lerp(startControlPoint.GetUpDirection(), endControlPoint.GetUpDirection(), lerpFactor);
+				return BezierCurve.BezierOrientation(startControlPoint.GetPosition(), startControlPoint.GetForwardHandlePosition(), endControlPoint.GetPosition(), endControlPoint.GetBackwardHandlePosition(), lerpFactor, upDirection);
+			default:
+				throw new InvalidOperationException("The current interpolation method is not supported: " + interpolationMethod);
+		}
 	}
 
 	public Vector3 InterpolateScale(float interpolationFactor) {
@@ -226,9 +296,33 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		return Vector3.Lerp(startControlPoint.GetScale(), endControlPoint.GetScale(), lerpFactor);
 	}
 
-	void OnDrawGizmos() {
-		Gizmos.color = Color.green;
-		for (int controlPointIndex = 0; controlPointIndex < _controlPoints.Length - 1; controlPointIndex++)
-			Gizmos.DrawLine(_controlPoints[controlPointIndex].transform.position, _controlPoints[controlPointIndex + 1].transform.position);
+	void OnDrawGizmosSelected() {
+		Vector3 previousPosition = _controlPoints[0].GetPosition();
+		Matrix4x4 originalMatrix = Gizmos.matrix;
+		Gizmos.matrix = transform.localToWorldMatrix;
+		for (int controlPointIndex = 0; controlPointIndex < _controlPoints.Length; controlPointIndex++) {
+
+			for (int resolutionPass = 0; resolutionPass < resolution; resolutionPass++) {
+				if (controlPointIndex == 0 && resolutionPass == 0)
+					continue;
+
+				float factor = controlPointIndex + (float)resolutionPass / resolution;
+				Vector3 position = InterpolatePosition(factor);
+				Gizmos.color = Color.green;
+				Gizmos.DrawSphere(position, Shape2DExtrudeControlPoint.gizmosRadius / 4);
+
+				Quaternion rotation = InterpolateRotation(factor);
+				Gizmos.color = Color.blue;
+				Gizmos.DrawRay(position, rotation * Vector3.up);
+
+				Gizmos.color = Color.green;
+				Gizmos.DrawLine(previousPosition, position);
+				previousPosition = position;
+
+				if (controlPointIndex == _controlPoints.Length - 1)
+					break;
+			}
+		}
+		Gizmos.matrix = originalMatrix;
 	}
 }
