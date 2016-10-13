@@ -172,25 +172,25 @@ public class Shape2DWindow : EditorWindow {
 		// Points
 		if (GUILayout.Button("Points")) {
 			GenericMenu menu = new GenericMenu();
-			menu.AddItem(new GUIContent("Create point"), false, CreatePoint, GetScreenCenter());
+			menu.AddItem(new GUIContent("Create point _p"), false, CreatePoint, GetScreenCenter());
 			if (HasSelection) {
-				menu.AddItem(new GUIContent("Delete selected points"), false, DeleteSelectedPoints);
-				menu.AddItem(new GUIContent("Remove selected points"), false, RemoveSelectedPoints);
+				menu.AddItem(new GUIContent("Delete selected points _DELETE"), false, DeleteSelectedPoints);
+				menu.AddItem(new GUIContent("Remove selected points #DELETE"), false, RemoveSelectedPoints);
 			}
 			else {
-				menu.AddDisabledItem(new GUIContent("Delete selected points"));
-				menu.AddDisabledItem(new GUIContent("Remove selected points"));
+				menu.AddDisabledItem(new GUIContent("Delete selected points _DELETE"));
+				menu.AddDisabledItem(new GUIContent("Remove selected points #DELETE"));
 			}
 			menu.AddSeparator("");
 			if (HasSelection) {
-				menu.AddItem(new GUIContent("Shrink selected points"), false, ShrinkSelectedPoints);
-				menu.AddItem(new GUIContent("Merge selected points"), false, MergeSelectedPoints);
-				menu.AddItem(new GUIContent("Break selected points"), false, BreakSelectedPoints);
+				menu.AddItem(new GUIContent("Shrink selected points _k"), false, ShrinkSelectedPoints);
+				menu.AddItem(new GUIContent("Merge selected points _m"), false, MergeSelectedPoints);
+				menu.AddItem(new GUIContent("Break selected points _b"), false, BreakSelectedPoints);
 			}
 			else {
-				menu.AddDisabledItem(new GUIContent("Shrink selected points"));
-				menu.AddDisabledItem(new GUIContent("Merge selected points"));
-				menu.AddDisabledItem(new GUIContent("Break selected points"));
+				menu.AddDisabledItem(new GUIContent("Shrink selected points _k"));
+				menu.AddDisabledItem(new GUIContent("Merge selected points _m"));
+				menu.AddDisabledItem(new GUIContent("Break selected points _b"));
 			}
 			menu.ShowAsContext();
 		}
@@ -199,21 +199,21 @@ public class Shape2DWindow : EditorWindow {
 		if (GUILayout.Button("Lines")) {
 			GenericMenu menu = new GenericMenu();
 			if (_selection.Count >= 2) {
-				menu.AddItem(new GUIContent("Create line between selected points"), false, CreateLineBetweenSelectedPoints);
-				menu.AddItem(new GUIContent("Remove lines between selected points"), false, RemoveLinesBetweenSelectedPoints);
-				menu.AddItem(new GUIContent("Reverse lines between selected points"), false, ReverseSelectedLines); 
+				menu.AddItem(new GUIContent("Create line between selected points _l"), false, CreateLineBetweenSelectedPoints);
+				menu.AddItem(new GUIContent("Remove lines between selected points &l"), false, RemoveLinesBetweenSelectedPoints);
+				menu.AddItem(new GUIContent("Reverse lines between selected points #l"), false, ReverseSelectedLines); 
 			}
 			else {
-				menu.AddDisabledItem(new GUIContent("Create line between selected points"));
-				menu.AddDisabledItem(new GUIContent("Remove lines between selected points"));
-				menu.AddDisabledItem(new GUIContent("Reverse lines between selected points"));
+				menu.AddDisabledItem(new GUIContent("Create line between selected points _l"));
+				menu.AddDisabledItem(new GUIContent("Remove lines between selected points &l"));
+				menu.AddDisabledItem(new GUIContent("Reverse lines between selected points #l"));
 			}
 			menu.AddSeparator("");
 			if (_selection.Count >= 2) {
-				menu.AddItem(new GUIContent("Divide selected lines"), false, DivideSelectedLines);
+				menu.AddItem(new GUIContent("Divide selected lines _d"), false, DivideSelectedLines);
 			}
 			else {
-				menu.AddDisabledItem(new GUIContent("Divide selected lines"));
+				menu.AddDisabledItem(new GUIContent("Divide selected lines _d"));
 			}
 			menu.ShowAsContext();
 		}
@@ -221,14 +221,14 @@ public class Shape2DWindow : EditorWindow {
 		// Normals
 		if (GUILayout.Button("Normals")) {
 			GenericMenu menu = new GenericMenu();
-			menu.AddItem(new GUIContent("Recalculate all normals"), false, RecalculateAllNormals);
+			menu.AddItem(new GUIContent("Recalculate all normals #n"), false, RecalculateAllNormals);
 			if (HasSelection) {
-				menu.AddItem(new GUIContent("Recalculate selected normals"), false, RecalculateSelectedNormals);
-				menu.AddItem(new GUIContent("Invert selected normals"), false, InvertSelectedNormals);
+				menu.AddItem(new GUIContent("Recalculate selected normals _n"), false, RecalculateSelectedNormals);
+				menu.AddItem(new GUIContent("Invert selected normals _i"), false, InvertSelectedNormals);
 			}
 			else {
-				menu.AddDisabledItem(new GUIContent("Recalculate selected normals"));
-				menu.AddDisabledItem(new GUIContent("Invert selected normals"));
+				menu.AddDisabledItem(new GUIContent("Recalculate selected normals _n"));
+				menu.AddDisabledItem(new GUIContent("Invert selected normals _i"));
 			}
 			menu.ShowAsContext();
 		}
@@ -1494,10 +1494,11 @@ public class Shape2DWindow : EditorWindow {
 		switch (current.GetTypeForControl(keyID)) {
 			case EventType.KeyDown:
 				if (current.isKey && current.keyCode == KeyCode.Delete && HasSelection) {
-					if (current.shift)
-						RemoveSelectedPoints();
-					else
-						DeleteSelectedPoints();
+					DeleteSelectedPoints();
+					current.Use();
+				}
+				if (current.isKey && current.shift && current.keyCode == KeyCode.Delete && HasSelection) {
+					RemoveSelectedPoints();
 					current.Use();
 				}
 				else if (current.isKey && current.keyCode == KeyCode.Escape && HasSelection) {
@@ -1521,6 +1522,36 @@ public class Shape2DWindow : EditorWindow {
 				}
 				else if (current.isKey && current.shift && current.keyCode == KeyCode.S && HasSelection) {
 					CenterSelection(GetScreenCenter());
+				}
+				else if (current.isKey && current.keyCode == KeyCode.K && HasClipboard) {
+					ShrinkSelectedPoints();
+				}
+				else if (current.isKey && current.keyCode == KeyCode.M && HasSelection) {
+					MergeSelectedPoints();
+				}
+				else if (current.isKey && current.keyCode == KeyCode.B && HasSelection) {
+					BreakSelectedPoints();
+				}
+				else if (current.isKey && current.keyCode == KeyCode.L && HasSelection) {
+					CreateLineBetweenSelectedPoints();
+				}
+				else if (current.isKey && current.alt && current.keyCode == KeyCode.L && HasSelection) {
+					RemoveLinesBetweenSelectedPoints();
+				}
+				else if (current.isKey && current.shift && current.keyCode == KeyCode.L && HasSelection) {
+					ReverseSelectedLines();
+				}
+				else if (current.isKey && current.keyCode == KeyCode.D && HasSelection) {
+					DivideSelectedLines();
+				}
+				else if (current.isKey && current.shift && current.keyCode == KeyCode.N) {
+					RecalculateAllNormals();
+				}
+				else if (current.isKey && current.keyCode == KeyCode.N && HasSelection) {
+					RecalculateSelectedNormals();
+				}
+				else if (current.isKey && current.keyCode == KeyCode.I && HasSelection) {
+					InvertSelectedNormals();
 				}
 				break;
 		}
