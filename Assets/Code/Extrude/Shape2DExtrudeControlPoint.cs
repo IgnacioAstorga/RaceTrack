@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 
+[ExecuteInEditMode]
 public class Shape2DExtrudeControlPoint : MonoBehaviour {
 
 	public float gizmosRadius = 0.25f;
@@ -12,6 +13,14 @@ public class Shape2DExtrudeControlPoint : MonoBehaviour {
 
 	public Vector3 GetPosition() {
 		return _transform.localPosition;
+	}
+
+	public Quaternion GetRotation() {
+		return _transform.localRotation;
+	}
+
+	public Vector3 GetScale() {
+		return _transform.localScale;
 	}
 
 	public Vector3 TransformPoint(Vector3 point) {
