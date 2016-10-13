@@ -1494,7 +1494,7 @@ public class Shape2DWindow : EditorWindow {
 		// Draws the U field
 		float[] selectedUs;
 		int[] usIndices = GetSelectedUs(out selectedUs);
-		DrawMultiFloatField("U", ref selectedUs);
+		DrawMultiFloatField("U", 0, 1, ref selectedUs);
 		for (int i = 0; i < selectedUs.Length; i++)
 			_shape2D.us[usIndices[i]] = selectedUs[i];
 
@@ -1504,101 +1504,50 @@ public class Shape2DWindow : EditorWindow {
 
 	private void DrawMultiVector2Field(string label, ref Vector2[] collection) {
 		// Checks which values are not the same
-		float x = collection[0].x;
-		bool sameX = true;
-		float y = collection[0].y;
-		bool sameY = true;
-		for (int i = 1; i < collection.Length; i++) {
-			sameX &= x == collection[i].x;
-			sameY &= y == collection[i].y;
-			if (!sameX && !sameY)
-				break;
-		}
+		Vector2 avg = Vector2.zero;
+		for (int i = 0; i < collection.Length; i++)
+			avg += collection[i];
+		avg /= collection.Length;
 
 		// Draws the field
 		EditorGUILayout.LabelField(label);
-		EditorGUILayout.BeginHorizontal();
 		float labelWidth = EditorGUIUtility.labelWidth;
 		float fieldWidth = EditorGUIUtility.fieldWidth;
 		EditorGUIUtility.labelWidth = 15;
 		EditorGUIUtility.fieldWidth = 25;
-		if (sameX) {
-			float userX = EditorGUILayout.FloatField("X", x);
-			for (int i = 0; i < collection.Length; i++)
-				collection[i].x = userX;
-		}
-		else {
-			string userX = EditorGUILayout.TextField("X", "-");
 
-			// Modifies the user modified values
-			if (x.ToString() != userX) {
-				float newX;
-				if (float.TryParse(userX, out newX)) {
-					for (int i = 0; i < collection.Length; i++)
-						collection[i].x = newX;
-				}
-			}
-		}
-		if (sameY) {
-			float userY = EditorGUILayout.FloatField("Y", y);
-			for (int i = 0; i < collection.Length; i++)
-				collection[i].y = userY;
-		}
-		else {
-			string userY = EditorGUILayout.TextField("Y", "-");
+		Vector2 inputPosition = EditorGUILayout.Vector2Field("", avg);
+		Vector2 displacement = inputPosition - avg;
+		for (int i = 0; i < collection.Length; i++)
+			collection[i] += displacement;
 
-			// Modifies the user modified values
-			if (x.ToString() != userY) {
-				float newY;
-				if (float.TryParse(userY, out newY)) {
-					for (int i = 0; i < collection.Length; i++)
-						collection[i].y = newY;
-				}
-			}
-		}
 		EditorGUIUtility.labelWidth = labelWidth;
 		EditorGUIUtility.fieldWidth = fieldWidth; 
-		EditorGUILayout.EndHorizontal();
 	}
 
-	private void DrawMultiFloatField(string label, ref float[] collection) {
+	private void DrawMultiFloatField(string label, float min, float max, ref float[] collection) {
 		// Checks which values are not the same
-		float u = collection[0];
-		bool sameU = true;
-		for (int i = 1; i < collection.Length; i++) {
-			if (u != collection[i]) {
-				sameU = false;
-				break;
-			}
-		}
+		float avg = 0;
+		for (int i = 0; i < collection.Length; i++)
+			avg += collection[i];
+		avg /= collection.Length;
 
 		// Draws the field
 		EditorGUILayout.LabelField(label);
-		EditorGUILayout.BeginHorizontal();
 		float labelWidth = EditorGUIUtility.labelWidth;
 		float fieldWidth = EditorGUIUtility.fieldWidth;
 		EditorGUIUtility.labelWidth = 15;
 		EditorGUIUtility.fieldWidth = 40;
-		if (sameU) {
-			float userU = EditorGUILayout.Slider("X", u, 0, 1);
-			for (int i = 0; i < collection.Length; i++)
-				collection[i] = userU;
+		
+		float inputU = EditorGUILayout.Slider(avg, min, max);
+		float displacement = inputU - avg;
+		for (int i = 0; i < collection.Length; i++) {
+			collection[i] += displacement;
+			collection[i] = Mathf.Clamp(collection[i], min, max);
 		}
-		else {
-			string userU = EditorGUILayout.TextField("X", "-");
 
-			// Modifies the user modified values
-			if (u.ToString() != userU) {
-				float newU;
-				if (float.TryParse(userU, out newU)) {
-					for (int i = 0; i < collection.Length; i++)
-						collection[i] = newU;
-				}
-			}
-		}
 		EditorGUIUtility.labelWidth = labelWidth;
 		EditorGUIUtility.fieldWidth = fieldWidth;
-		EditorGUILayout.EndHorizontal();
 	}
 
 	private int[] GetSelectedPoints(out Vector2[] selectedPoints) {
