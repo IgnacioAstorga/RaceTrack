@@ -31,8 +31,8 @@ public class Shape2DWindow : EditorWindow {
 	private float _pointsListWidth = 180f;
 	private float _textureSelectorHeight = 70f;
 	private float _previewTextureSize = -1f;
-	private float _selectedPanelHeight = 80f;
-	private float _selectedPanelWidth = 120f;
+	private float _selectedPanelHeight = 120f;
+	private float _selectedPanelWidth = 150f;
 
 	private Stack<Rect> _areas = new Stack<Rect>();
 	private Rect _mainAreaRect;
@@ -438,7 +438,7 @@ public class Shape2DWindow : EditorWindow {
 
 		if (Event.current.type == EventType.repaint) {
 			if (_previewMaterial == null) {
-				_previewMaterial = new Material(Shader.Find("Unlit/Color NoCull"));
+				_previewMaterial = new Material(Shader.Find("Unlit/Texture NoCull"));
 			}
 
 			_previewMaterial.mainTexture = _previewTexture;
@@ -1395,22 +1395,29 @@ public class Shape2DWindow : EditorWindow {
 		// Draws the point field
 		Vector2[] selectedPoints;
 		int[] pointIndices = GetSelectedPoints(out selectedPoints);
-		DrawMultiVector2("Point", ref selectedPoints);
+		DrawMultiVector2Field("Point", ref selectedPoints);
 		for (int i = 0; i < selectedPoints.Length; i++)
 			_shape2D.points[pointIndices[i]] = selectedPoints[i];
 		
 		// Draws the normal field
 		Vector2[] selectedNormals;
 		int[] normalIndices = GetSelectedNormals(out selectedNormals);
-		DrawMultiVector2("Normal", ref selectedNormals);
+		DrawMultiVector2Field("Normal", ref selectedNormals);
 		for (int i = 0; i < selectedNormals.Length; i++)
 			_shape2D.normals[normalIndices[i]] = selectedNormals[i];
+
+		// Draws the U field
+		float[] selectedUs;
+		int[] usIndices = GetSelectedUs(out selectedUs);
+		DrawMultiFloatField("U", ref selectedUs);
+		for (int i = 0; i < selectedUs.Length; i++)
+			_shape2D.us[usIndices[i]] = selectedUs[i];
 
 		EditorGUILayout.EndVertical();
 		EndArea();
 	}
 
-	private void DrawMultiVector2(string label, ref Vector2[] collection) {
+	private void DrawMultiVector2Field(string label, ref Vector2[] collection) {
 		// Checks which values are not the same
 		float x = collection[0].x;
 		bool sameX = true;
@@ -1469,6 +1476,46 @@ public class Shape2DWindow : EditorWindow {
 		EditorGUILayout.EndHorizontal();
 	}
 
+	private void DrawMultiFloatField(string label, ref float[] collection) {
+		// Checks which values are not the same
+		float u = collection[0];
+		bool sameU = true;
+		for (int i = 1; i < collection.Length; i++) {
+			if (u != collection[i]) {
+				sameU = false;
+				break;
+			}
+		}
+
+		// Draws the field
+		EditorGUILayout.LabelField(label);
+		EditorGUILayout.BeginHorizontal();
+		float labelWidth = EditorGUIUtility.labelWidth;
+		float fieldWidth = EditorGUIUtility.fieldWidth;
+		EditorGUIUtility.labelWidth = 15;
+		EditorGUIUtility.fieldWidth = 40;
+		if (sameU) {
+			float userU = EditorGUILayout.Slider("X", u, 0, 1);
+			for (int i = 0; i < collection.Length; i++)
+				collection[i] = userU;
+		}
+		else {
+			string userU = EditorGUILayout.TextField("X", "-");
+
+			// Modifies the user modified values
+			if (u.ToString() != userU) {
+				float newU;
+				if (float.TryParse(userU, out newU)) {
+					for (int i = 0; i < collection.Length; i++)
+						collection[i] = newU;
+				}
+			}
+		}
+		EditorGUIUtility.labelWidth = labelWidth;
+		EditorGUIUtility.fieldWidth = fieldWidth;
+		EditorGUILayout.EndHorizontal();
+	}
+
 	private int[] GetSelectedPoints(out Vector2[] selectedPoints) {
 		selectedPoints = new Vector2[_selection.Count];
 		int[] indices = new int[_selection.Count];
@@ -1488,6 +1535,18 @@ public class Shape2DWindow : EditorWindow {
 		foreach (int index in _selection) {
 			indices[i] = index;
 			selectedNormals[i] = _shape2D.normals[index];
+			i++;
+		}
+		return indices;
+	}
+
+	private int[] GetSelectedUs(out float[] selectedUs) {
+		selectedUs = new float[_selection.Count];
+		int[] indices = new int[_selection.Count];
+		int i = 0;
+		foreach (int index in _selection) {
+			indices[i] = index;
+			selectedUs[i] = _shape2D.us[index];
 			i++;
 		}
 		return indices;

@@ -20,7 +20,7 @@ public class Shape2DEditor : Editor {
 			_shape2D.RecalculateAllNormals();
 		}
 		if (_material == null)
-			_material = new Material(Shader.Find("Unlit/Color NoCull"));
+			_material = new Material(Shader.Find("Unlit/Texture NoCull"));
 		_material = (Material) EditorGUILayout.ObjectField("Preview material", _material, typeof(Material), false);
 	}
 
