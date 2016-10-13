@@ -163,6 +163,8 @@ public class Shape2DWindow : EditorWindow {
 				menu.AddDisabledItem(new GUIContent("Mirror selection horizontally local"));
 				menu.AddDisabledItem(new GUIContent("Mirror selection vertically local"));
 			}
+			menu.AddSeparator("");
+			menu.AddItem(new GUIContent("Sort all points"), false, SortAllPoints, 0);
 			menu.ShowAsContext();
 		}
 
@@ -343,6 +345,8 @@ public class Shape2DWindow : EditorWindow {
 						menu.AddItem(new GUIContent("Paste point coordinates"), false, PastePointCoordinates, index);
 					else
 						menu.AddDisabledItem(new GUIContent("Paste point coordinates"));
+					menu.AddSeparator("");
+					menu.AddItem(new GUIContent("Sort all points starting on this one"), false, SortAllPoints, index);
 					menu.ShowAsContext();
 					current.Use();
 				}
@@ -679,6 +683,8 @@ public class Shape2DWindow : EditorWindow {
 						menu.AddItem(new GUIContent("Paste point coordinates"), false, PastePointCoordinates, index);
 					else
 						menu.AddDisabledItem(new GUIContent("Paste point coordinates"));
+					menu.AddSeparator("");
+					menu.AddItem(new GUIContent("Sort all points starting on this one"), false, SortAllPoints, index);
 					menu.ShowAsContext();
 					current.Use();
 				}
@@ -1227,6 +1233,83 @@ public class Shape2DWindow : EditorWindow {
 		}
 	}
 
+	private void SortAllPoints(object startingIndex) {
+		try {
+			int initialIndex = Convert.ToInt32(startingIndex);
+
+			List<int> list = new List<int>();
+
+			HashSet<int> remainingPoints = new HashSet<int>();
+			for (int i = 0; i < _shape2D.points.Length; i++)
+				remainingPoints.Add(i);
+			remainingPoints.Remove(initialIndex);
+
+			Stack<int> pointsToCheck = new Stack<int>();
+			pointsToCheck.Push(initialIndex);
+
+
+			while (remainingPoints.Count > 0) {
+				while (pointsToCheck.Count > 0) {
+					int currentPoint = pointsToCheck.Pop();
+					list.Add(currentPoint);
+					List<int> connectedPoints = GetConnectedPoints(currentPoint);
+					for (int i = connectedPoints.Count - 1; i >= 0; i--) {
+						if (remainingPoints.Contains(connectedPoints[i])) {
+							remainingPoints.Remove(connectedPoints[i]);
+							pointsToCheck.Push(connectedPoints[i]);
+						}
+					}
+				}
+
+				int closest = -1;
+				float closestDistance = float.MaxValue;
+				foreach (int index in remainingPoints) {
+					float distance = Vector3.Distance(_shape2D.points[index], _shape2D.points[list[list.Count - 1]]);
+					if (distance < closestDistance) {
+						closestDistance = distance;
+						closest = index;
+					}
+				}
+				if (closest != -1) {
+					remainingPoints.Remove(closest);
+					pointsToCheck.Push(closest);
+				}
+			}
+
+			Vector2[] newPoints = new Vector2[_shape2D.points.Length];
+			Vector2[] newNormals = new Vector2[_shape2D.normals.Length];
+			float[] newUs = new float[_shape2D.us.Length];
+			List<int> lines = new List<int>();
+			for (int i = 0; i < list.Count; i++) {
+				newPoints[i] = _shape2D.points[list[i]];
+				newNormals[i] = _shape2D.normals[list[i]];
+				newUs[i] = _shape2D.us[list[i]];
+				List<int> connected = GetConnectedPoints(list[i]);
+				for (int j = 0; j < connected.Count; j++) {
+					lines.Add(list.IndexOf(connected[j]));
+					lines.Add(i);
+				}
+			}
+			_shape2D.points = newPoints;
+			_shape2D.normals = newNormals;
+			_shape2D.us = newUs;
+			_shape2D.lines = lines.ToArray();
+
+			_selection.Clear();
+		}
+		catch (Exception e) {
+			Debug.LogError("ERROR: Invalid point index: " + startingIndex + "\n" + e);
+		}
+	}
+
+	private List<int> GetConnectedPoints(int index) {
+		List<int> connectedPoints = new List<int>();
+		for (int line = 0; line < _shape2D.lines.Length; line += 2)
+			if (_shape2D.lines[line + 1] == index)
+				connectedPoints.Add(_shape2D.lines[line]);
+		return connectedPoints;
+	}
+
 	private void HandleMouseEvents(Rect area) {
 		// Drag Events
 		Event current = Event.current;
@@ -1280,6 +1363,8 @@ public class Shape2DWindow : EditorWindow {
 						menu.AddDisabledItem(new GUIContent("Paste copied points"));
 						menu.AddDisabledItem(new GUIContent("Paste copied points here"));
 					}
+					menu.AddSeparator("");
+					menu.AddItem(new GUIContent("Sort all points"), false, SortAllPoints, 0);
 					menu.ShowAsContext();
 					current.Use();
 				}
