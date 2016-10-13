@@ -1487,14 +1487,20 @@ public class Shape2DWindow : EditorWindow {
 		// Draws the normal field
 		Vector2[] selectedNormals;
 		int[] normalIndices = GetSelectedNormals(out selectedNormals);
-		DrawMultiVector2Field("Normal", ref selectedNormals);
+		float[] normalAngles = new float[selectedNormals.Length];
+		for (int i = 0; i < normalAngles.Length; i++) {
+			normalAngles[i] = Mathf.Acos(selectedNormals[i].x) * Mathf.Rad2Deg;
+			if (selectedNormals[i].y < 0)
+				normalAngles[i] *= -1;
+		}
+		DrawMultiFloatField("Normal", ref normalAngles, "Angle");
 		for (int i = 0; i < selectedNormals.Length; i++)
-			_shape2D.normals[normalIndices[i]] = selectedNormals[i];
+			_shape2D.normals[normalIndices[i]] = new Vector2(Mathf.Cos(normalAngles[i] * Mathf.Deg2Rad), Mathf.Sin(normalAngles[i] * Mathf.Deg2Rad));
 
 		// Draws the U field
 		float[] selectedUs;
 		int[] usIndices = GetSelectedUs(out selectedUs);
-		DrawMultiFloatField("U", 0, 1, ref selectedUs);
+		DrawMultiSliderField("U", 0, 1, ref selectedUs);
 		for (int i = 0; i < selectedUs.Length; i++)
 			_shape2D.us[usIndices[i]] = selectedUs[i];
 
@@ -1522,10 +1528,10 @@ public class Shape2DWindow : EditorWindow {
 			collection[i] += displacement;
 
 		EditorGUIUtility.labelWidth = labelWidth;
-		EditorGUIUtility.fieldWidth = fieldWidth; 
+		EditorGUIUtility.fieldWidth = fieldWidth;
 	}
 
-	private void DrawMultiFloatField(string label, float min, float max, ref float[] collection) {
+	private void DrawMultiFloatField(string label, ref float[] collection, string fieldLabel = "") {
 		// Checks which values are not the same
 		float avg = 0;
 		for (int i = 0; i < collection.Length; i++)
@@ -1536,7 +1542,28 @@ public class Shape2DWindow : EditorWindow {
 		EditorGUILayout.LabelField(label);
 		float labelWidth = EditorGUIUtility.labelWidth;
 		float fieldWidth = EditorGUIUtility.fieldWidth;
-		EditorGUIUtility.labelWidth = 15;
+		EditorGUIUtility.labelWidth = GUI.skin.label.CalcSize(new GUIContent(fieldLabel)).x;
+		EditorGUIUtility.fieldWidth = 40;
+
+		float inputU = EditorGUILayout.FloatField(fieldLabel, avg);
+		float displacement = inputU - avg;
+		for (int i = 0; i < collection.Length; i++)
+			collection[i] += displacement;
+
+		EditorGUIUtility.labelWidth = labelWidth;
+		EditorGUIUtility.fieldWidth = fieldWidth;
+	}
+
+	private void DrawMultiSliderField(string label, float min, float max, ref float[] collection) {
+		// Checks which values are not the same
+		float avg = 0;
+		for (int i = 0; i < collection.Length; i++)
+			avg += collection[i];
+		avg /= collection.Length;
+
+		// Draws the field
+		EditorGUILayout.LabelField(label);
+		float fieldWidth = EditorGUIUtility.fieldWidth;
 		EditorGUIUtility.fieldWidth = 40;
 		
 		float inputU = EditorGUILayout.Slider(avg, min, max);
@@ -1545,8 +1572,7 @@ public class Shape2DWindow : EditorWindow {
 			collection[i] += displacement;
 			collection[i] = Mathf.Clamp(collection[i], min, max);
 		}
-
-		EditorGUIUtility.labelWidth = labelWidth;
+		
 		EditorGUIUtility.fieldWidth = fieldWidth;
 	}
 
