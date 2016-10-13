@@ -17,7 +17,9 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		Bezier
 	}
 
-	public Shape2D shape;
+	public Shape2D visualShape;
+	public bool useCollider = true;
+	public Shape2D colliderShape;
 	public int resolution = 5;
 	public InterpolationMethod interpolationMethod = InterpolationMethod.Bezier;
 	public bool recalculateNormals = true;
@@ -26,17 +28,19 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 	private Shape2DExtrudeControlPoint[] _controlPoints;
 
 	private MeshFilter _meshFilter;
+	private MeshCollider _meshCollider;
 
 	void Awake() {
 		// Retrieves the desired components
 		_meshFilter = GetComponent<MeshFilter>();
+		_meshCollider = GetComponent<MeshCollider>();
 
 		// Finds all the control points assigned to this segment
 		_controlPoints = this.GetComponentsInChildrenOnly<Shape2DExtrudeControlPoint>();
 	}
 	
 	void Start() {
-		if (shape == null) {
+		if (visualShape == null) {
 			Debug.LogWarning("WARNING: No shape selected!");
 			return;
 		}
@@ -45,7 +49,22 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		CalculateControlPointsRotation();
 
 		// Extrudes the shape using the control points
-		ExtrudeShape();
+		Mesh extrudedShape = ExtrudeShape(visualShape);
+		_meshFilter.sharedMesh = extrudedShape;
+
+		// Creates the collider
+		if (useCollider) {
+			if (_meshCollider == null) {
+				Debug.LogError("ERROR: No mesh collider attached to the entity!");
+				return;
+			}
+
+			// If no collider shape is specified, uses the visual one
+			if (colliderShape == null)
+				_meshCollider.sharedMesh = extrudedShape;
+			else
+				_meshCollider.sharedMesh = ExtrudeShape(colliderShape);
+		}
 	}
 
 	void Update() {
@@ -117,33 +136,32 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		}
 	}
 
-	private void ExtrudeShape() {
+	private Mesh ExtrudeShape(Shape2D shape) {
 		// At least two control points are needed to extrude the shape
 		if (_controlPoints.Length < 2) {
 			Debug.LogWarning("WARNING: At least 2 control points needed to extrude!");
-			return;
+			return null;
 		}
 
 		// Creates and populates the mesh
 		Mesh mesh = new Mesh();
-		mesh.vertices = CreateVertices();
-		mesh.uv = CreateUVs();
-		mesh.triangles = CreateTriangles();
+		mesh.vertices = CreateVertices(shape);
+		mesh.uv = CreateUVs(shape);
+		mesh.triangles = CreateTriangles(shape);
 
 		// Calculates the mesh's normals
 		if (recalculateNormals)
 			mesh.RecalculateNormals();
 		else
-			mesh.normals = CreateNormals();
+			mesh.normals = CreateNormals(shape);
 
 		// Recalculates the mesh's bounds
 		mesh.RecalculateBounds();
 
-		// Assigns the mesh in the mesh filter
-		_meshFilter.sharedMesh = mesh;
+		return mesh;
 	}
 
-	private Vector3[] CreateVertices() {
+	private Vector3[] CreateVertices(Shape2D shape) {
 		// Creates the vertices
 		Vector3[] meshVertices = new Vector3[resolution * _controlPoints.Length * shape.points.Length];
 
@@ -179,7 +197,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		return meshVertices;
 	}
 
-	private Vector3[] CreateNormals() {
+	private Vector3[] CreateNormals(Shape2D shape) {
 		// Creates the normals
 		Vector3[] meshNormals = new Vector3[resolution * _controlPoints.Length * shape.normals.Length];
 
@@ -213,7 +231,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		return meshNormals;
 	}
 
-	private Vector2[] CreateUVs() {
+	private Vector2[] CreateUVs(Shape2D shape) {
 		// Creates the UVs
 		Vector2[] meshUVs = new Vector2[resolution * _controlPoints.Length * shape.us.Length];
 
@@ -247,7 +265,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		return meshUVs;
 	}
 
-	private int[] CreateTriangles() {
+	private int[] CreateTriangles(Shape2D shape) {
 		// Creates the vertices
 		int trianglesCount = 3 * resolution * (_controlPoints.Length - 1) * shape.lines.Length;
 		int[] meshTriangles = new int[trianglesCount];

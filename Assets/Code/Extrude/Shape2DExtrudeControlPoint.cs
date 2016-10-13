@@ -71,7 +71,8 @@ public class Shape2DExtrudeControlPoint : MonoBehaviour {
 
 		Gizmos.color = Color.cyan;
 		Vector3 position = _transform.position;
-		Gizmos.DrawSphere(position, gizmosRadius);
+		float radius = _transform.lossyScale.x * gizmosRadius;
+		Gizmos.DrawSphere(position, radius);
 
 		if (_segment.interpolationMethod == Shape2DExtrudeSegment.InterpolationMethod.Bezier) {
 			Gizmos.color = Color.yellow;
@@ -79,12 +80,12 @@ public class Shape2DExtrudeControlPoint : MonoBehaviour {
 			if (controlPointIndex != 0) {
 				Vector3 backwardHandle = _transform.position - _transform.forward * _transform.lossyScale.z;
 				Gizmos.DrawLine(position, backwardHandle);
-				Gizmos.DrawSphere(backwardHandle, gizmosRadius / 2);
+				Gizmos.DrawSphere(backwardHandle, radius / 2);
 			}
 			if (controlPointIndex != _segment.GetControlPoints().Length - 1) {
 				Vector3 forwardHandle = _transform.position + _transform.forward * _transform.lossyScale.z;
 				Gizmos.DrawLine(position, forwardHandle);
-				Gizmos.DrawSphere(forwardHandle, gizmosRadius / 2);
+				Gizmos.DrawSphere(forwardHandle, radius / 2);
 			}
 		}
 	}
