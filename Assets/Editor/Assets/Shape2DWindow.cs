@@ -22,6 +22,7 @@ public class Shape2DWindow : EditorWindow {
 	private float _lineWidth = 5f;
 	private float _normalLength = 0.35f;
 	private float _normalHandleSize = 0.75f;
+	private float _selectionAreaExpansionDistance = 5f;
 
 	private float _cursorRectScale = 2f;
 
@@ -388,7 +389,7 @@ public class Shape2DWindow : EditorWindow {
 		return _mainAreaRect.center - Vector2.up * (_shapeSelectorHeight + _upperRibbonHeight);
 	}
 
-	private Rect GetSelectionRect() {
+	private Rect GetCurrentAreaSelectionRect() {
 		return new Rect(0, 0, CurrentArea.width, CurrentArea.height);
 	}
 
@@ -500,6 +501,9 @@ public class Shape2DWindow : EditorWindow {
 		// Draws the background
 		DrawBackground(_oldScale);
 
+		// Draws the selection rect
+		DrawSelectionRect();
+
 		// Draws the lines
 		for (int i = 0; i < _shape2D.lines.Length - 1; i += 2)
 			DrawLine(PointToScreen(_shape2D.points[_shape2D.lines[i]]), PointToScreen(_shape2D.points[_shape2D.lines[i + 1]]), _lineWidth, Color.blue);
@@ -529,7 +533,8 @@ public class Shape2DWindow : EditorWindow {
 		HandleNormalsEvents();
 
 		// Manages the mouse and keyboard events
-		HandleMouseEvents(GetSelectionRect());
+		HandleSelectionEvents();
+		HandleMouseEvents(GetCurrentAreaSelectionRect());
 		HandleKeyboardEvents();
 
 		// Draws the selected object information
@@ -570,9 +575,18 @@ public class Shape2DWindow : EditorWindow {
 
 		// Draws the ADD and REMOVE rects
 		if (Event.current.alt)
-			EditorGUIUtility.AddCursorRect(GetSelectionRect(), MouseCursor.ArrowMinus);
+			EditorGUIUtility.AddCursorRect(GetCurrentAreaSelectionRect(), MouseCursor.ArrowMinus);
 		else if (Event.current.control)
-			EditorGUIUtility.AddCursorRect(GetSelectionRect(), MouseCursor.ArrowPlus);
+			EditorGUIUtility.AddCursorRect(GetCurrentAreaSelectionRect(), MouseCursor.ArrowPlus);
+	}
+
+	private void DrawSelectionRect() {
+		Rect selectionRect = GetSelectionRect(true);
+		selectionRect = selectionRect.Expand(_selectionAreaExpansionDistance);
+		Color faceColor = new Color(0.5f, 1f, 0.5f, 0.25f);
+		Color outlineColor = new Color(0f, 0.5f, 0f, 0.5f);
+		Handles.color = Color.white;
+		Handles.DrawSolidRectangleWithOutline(selectionRect, faceColor, outlineColor);
 	}
 
 	private void DrawLine(Vector2 point1, Vector2 point2,float width, Color color) {
@@ -1028,12 +1042,17 @@ public class Shape2DWindow : EditorWindow {
 			RemovePoint(selectionCopy[i]);
 	}
 
+	private Rect GetSelectionRect(bool screen = false) {
+		Rect rect = new Rect();
+		Vector2[] selectedPoints;
+		GetSelectedPoints(out selectedPoints, screen);
+		rect = rect.FromPoints(selectedPoints);
+		return rect;
+	}
+
 	private void FocusSelection() {
 		// Calculates the containing rect
-		Rect containingRect = new Rect();
-		Vector2[] selectedPoints;
-		GetSelectedPoints(out selectedPoints);
-		containingRect = containingRect.FromPoints(selectedPoints);
+		Rect containingRect = GetSelectionRect();
 		containingRect = containingRect.Expand(0.5f);
 
 		// Calculates the zoom
@@ -1078,10 +1097,7 @@ public class Shape2DWindow : EditorWindow {
 	private void CenterSelection(object point) {
 		try {
 			Vector2 reference = ScreenToPoint((Vector2)point);
-			Rect rect = new Rect();
-			Vector2[] selectedPoints;
-			GetSelectedPoints(out selectedPoints);
-			rect = rect.FromPoints(selectedPoints);
+			Rect rect = GetSelectionRect();
 			foreach (int index in _selection)
 				_shape2D.points[index] += reference - rect.center;
 			FocusSelection();
@@ -1194,9 +1210,7 @@ public class Shape2DWindow : EditorWindow {
 			bool isGlobal = Convert.ToBoolean(global);
 			Rect rect = new Rect();
 			if (!isGlobal) {
-				Vector2[] selectedPoints;
-				GetSelectedPoints(out selectedPoints);
-				rect = rect.FromPoints(selectedPoints);
+				rect = GetSelectionRect();
 			}
 
 			foreach (int index in _selection) {
@@ -1216,9 +1230,7 @@ public class Shape2DWindow : EditorWindow {
 			bool isGlobal = Convert.ToBoolean(global);
 			Rect rect = new Rect();
 			if (!isGlobal) {
-				Vector2[] selectedPoints;
-				GetSelectedPoints(out selectedPoints);
-				rect = rect.FromPoints(selectedPoints);
+				rect = GetSelectionRect();
 			}
 
 			foreach (int index in _selection) {
@@ -1310,16 +1322,55 @@ public class Shape2DWindow : EditorWindow {
 		return connectedPoints;
 	}
 
+	private void HandleSelectionEvents() {
+		if (!HasSelection)
+			return;
+
+		Event current = Event.current;
+		int dragID = GUIUtility.GetControlID("SelectionDrag".GetHashCode(), FocusType.Passive);
+		Rect selectionArea = GetSelectionRect(true);
+		selectionArea = selectionArea.Expand(_selectionAreaExpansionDistance);
+		EditorGUIUtility.AddCursorRect(selectionArea, MouseCursor.Link);
+		Rect selectedFieldsArea = new Rect();
+		if (HasSelection)
+			selectedFieldsArea = new Rect(CurrentArea.width - _selectedPanelWidth, CurrentArea.height - _selectedPanelHeight, _selectedPanelWidth, _selectedPanelHeight);
+		switch (current.GetTypeForControl(dragID)) {
+			case EventType.MouseDown:
+				if (selectionArea.Contains(current.mousePosition) && !selectedFieldsArea.Contains(current.mousePosition) && current.button == 0) {
+					GUIUtility.hotControl = dragID;
+					current.Use();
+				}
+				break;
+			case EventType.MouseUp:
+				if (GUIUtility.hotControl == dragID && current.button == 0) {
+					GUIUtility.hotControl = 0;
+					current.Use();
+				}
+				break;
+			case EventType.MouseDrag:
+				if (GUIUtility.hotControl == dragID) {
+					Vector2 delta = current.delta;
+					delta.y *= -1;
+					foreach (int index in _selection)
+						_shape2D.points[index] += delta / _scale;
+					current.Use();
+				}
+				break;
+		}
+	}
+
 	private void HandleMouseEvents(Rect area) {
 		// Drag Events
 		Event current = Event.current;
 		int dragID = GUIUtility.GetControlID("Drag".GetHashCode(), FocusType.Passive);
 		if (GUIUtility.hotControl == dragID)
 			EditorGUIUtility.AddCursorRect(area, MouseCursor.Pan);
-		Rect selectionArea = new Rect(area.width - _selectedPanelWidth, area.height - _selectedPanelHeight, _selectedPanelWidth, _selectedPanelHeight);
+		Rect selectedFieldsArea = new Rect();
+		if (HasSelection)
+			selectedFieldsArea = new Rect(area.width - _selectedPanelWidth, area.height - _selectedPanelHeight, _selectedPanelWidth, _selectedPanelHeight);
 		switch (current.GetTypeForControl(dragID)) {
 			case EventType.ContextClick:
-				if (area.Contains(current.mousePosition) && !selectionArea.Contains(current.mousePosition)) {
+				if (area.Contains(current.mousePosition) && !selectedFieldsArea.Contains(current.mousePosition)) {
 					GenericMenu menu = new GenericMenu();
 					if (_selection.Count == 1)
 						menu.AddItem(new GUIContent("Extrude point"), false, ExtrudePoint, current.mousePosition);
@@ -1370,7 +1421,7 @@ public class Shape2DWindow : EditorWindow {
 				}
 				break;
 			case EventType.MouseDown:
-				if (area.Contains(current.mousePosition) && !selectionArea.Contains(current.mousePosition) && current.button == 2) {
+				if (area.Contains(current.mousePosition) && !selectedFieldsArea.Contains(current.mousePosition) && current.button == 2) {
 					GUIUtility.hotControl = dragID;
 					current.Use();
 					EditorGUIUtility.SetWantsMouseJumping(1);
@@ -1408,7 +1459,7 @@ public class Shape2DWindow : EditorWindow {
 		}
 		switch (current.GetTypeForControl(selectID)) {
 			case EventType.MouseDown:
-				if (area.Contains(current.mousePosition) && !selectionArea.Contains(current.mousePosition) && current.button == 0) {
+				if (area.Contains(current.mousePosition) && !selectedFieldsArea.Contains(current.mousePosition) && current.button == 0) {
 					GUIUtility.hotControl = selectID;
 					current.Use();
 					_selectionStart = current.mousePosition;
@@ -1576,13 +1627,16 @@ public class Shape2DWindow : EditorWindow {
 		EditorGUIUtility.fieldWidth = fieldWidth;
 	}
 
-	private int[] GetSelectedPoints(out Vector2[] selectedPoints) {
+	private int[] GetSelectedPoints(out Vector2[] selectedPoints, bool screen = false) {
 		selectedPoints = new Vector2[_selection.Count];
 		int[] indices = new int[_selection.Count];
 		int i = 0;
 		foreach (int index in _selection) {
 			indices[i] = index;
-			selectedPoints[i] = _shape2D.points[index];
+			if (screen)
+				selectedPoints[i] = PointToScreen(_shape2D.points[index]);
+			else
+				selectedPoints[i] = _shape2D.points[index];
 			i++;
 		}
 		return indices;
