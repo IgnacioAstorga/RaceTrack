@@ -60,34 +60,59 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 	}
 
 	private void CalculateControlPointsRotation() {
+
+		// At least two points are needed to calculae their rotation
+		if (_controlPoints.Length < 2)
+			return;
+
+		// For each control point...
 		for (int controlPointIndex = 1; controlPointIndex < _controlPoints.Length - 1; controlPointIndex++) {
 
+			// Calculates the direction from the previous control point
 			Vector3 directionFromPrevious = _controlPoints[controlPointIndex].GetPosition() - _controlPoints[controlPointIndex - 1].GetPosition();
+
+			// Calculates the direction to the next control point
 			Vector3 directionToNext = _controlPoints[controlPointIndex + 1].GetPosition() - _controlPoints[controlPointIndex].GetPosition();
 
-			Vector3 tangentDirection = directionFromPrevious + directionToNext;
-			Vector3 normalDirection = Vector3.Cross(directionFromPrevious, directionToNext);
+			// Calculates the related directions based on the previous ones
 			Vector3 upDirection = _controlPoints[controlPointIndex].GetUpDirection();
 			Vector3 forwardDirection = _controlPoints[controlPointIndex].GetForwardDirection();
+			Vector3 tangentDirection = directionFromPrevious + directionToNext;
 
+			// The normal needs more calculations
+			Vector3 proxUpDirection = _controlPoints[controlPointIndex - 1].GetUpDirection() + _controlPoints[controlPointIndex + 1].GetUpDirection();
+			Vector3 normalDirection = Vector3.Cross(directionFromPrevious, directionToNext);
+			if (Vector3.Dot(proxUpDirection, normalDirection) < 0)
+				normalDirection *= -1;
+
+			// Calculates the rotation based on the segment's configuration
 			Quaternion rotation;
 			switch (controlPointRotation) {
 				case ControlPointRotation.Manual:
+
+					// Keep the control point's rotation
 					rotation = _controlPoints[controlPointIndex].GetRotation();
 					break;
 				case ControlPointRotation.AutomaticNormals:
+
+					// Keep the control point's orientation, but modify the normal
 					rotation = Quaternion.LookRotation(forwardDirection, normalDirection);
 					break;
 				case ControlPointRotation.AutomaticOrientation:
+					
+					// Keep the control point's normal, but modify the orientation
 					rotation = Quaternion.LookRotation(tangentDirection, upDirection);
 					break;
 				case ControlPointRotation.AutomaticBoth:
+
+					// Modify both the control point's normal and orientation
 					rotation = Quaternion.LookRotation(tangentDirection, normalDirection);
 					break;
 				default:
 					throw new InvalidOperationException("The selected rotation method is not supported: " + controlPointRotation);
 			}
 
+			// Assigns the new rotation
 			_controlPoints[controlPointIndex].GetTransform().localRotation = rotation;
 		}
 	}
