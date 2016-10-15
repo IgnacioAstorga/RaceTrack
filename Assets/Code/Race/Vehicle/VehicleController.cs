@@ -5,6 +5,8 @@ public class VehicleController : MonoBehaviour {
 
 	public bool Grounded { get; private set; }
 
+	public Transform model;
+
 	public Transform[] hoverPoints;
 	public LayerMask raceTrackLayer;
 	public float gravityRayMaxDistance = 10f;
@@ -12,6 +14,8 @@ public class VehicleController : MonoBehaviour {
 
 	public float hoverDistance = 1f;
 	public float hoverForce = 50f;
+	public float tiltAngle = 15f;
+	public float tiltSpeed = 15f;
 
 	public float turnRate = 45f;
 	public float acceleration = 10f;
@@ -34,6 +38,16 @@ public class VehicleController : MonoBehaviour {
 		_transform = transform;
 	}
 
+	void Start() {
+
+		// Checks if everything is OK
+		if (model == null) {
+			Debug.LogError("ERROR: Missing reference to the model object!");
+			enabled = false;
+			return;
+		}
+	}
+
 	void Update() {
 
 		// Reads the user input
@@ -54,23 +68,20 @@ public class VehicleController : MonoBehaviour {
 
 	void FixedUpdate() {
 
-		// Reorientates the vehicle to match the track's curvature
-		MatchTrackCurvature();
-
-		// Turns the vehicle matching the user input
-		TurnVehicle();
-
-		// Accelerates the vehicle towards it's forward direction
-		Accelerate();
-	}
-
-	private void MatchTrackCurvature() {
-
 		// Calculates the gravity from the track's curvature
 		CalculateGravity();
 
 		// Makes the vehicle hover, orientating it to match the track
 		HoverOverTrack();
+
+		// Turns the vehicle matching the user input
+		TurnVehicle();
+
+		// Tilts the vehicle's model using the turn speed
+		TiltModel();
+
+		// Accelerates the vehicle towards it's forward direction
+		Accelerate();
 	}
 
 	private void CalculateGravity() {
@@ -145,10 +156,19 @@ public class VehicleController : MonoBehaviour {
 
 		// Rotates the forward direction using the turn rate
 		float amountTurned = turnRate * _horizontalInput * Time.deltaTime;
-		amountTurned *= (1 - _rigidbody.velocity.magnitude / maxSpeed);
+		amountTurned *= GetVelocityFactor();
 		Quaternion turnRotation = Quaternion.AngleAxis(amountTurned, _transform.up);
 		_transform.rotation = turnRotation * _transform.rotation;
 		_rigidbody.velocity = turnRotation * _rigidbody.velocity;
+	}
+
+	private void TiltModel() {
+
+		// Tilts the model, creating a better sensation of speed
+		float weightedTiltSpeed = tiltSpeed;
+		weightedTiltSpeed *= GetVelocityFactor();
+		Quaternion tiltRotation = Quaternion.AngleAxis(-tiltAngle * _horizontalInput, Vector3.forward);
+		model.localRotation = Quaternion.Lerp(model.localRotation, tiltRotation, weightedTiltSpeed);
 	}
 
 	private void Accelerate() {
@@ -162,5 +182,9 @@ public class VehicleController : MonoBehaviour {
 		// Applies drag to the velocity
 		float drag = Acceleration.GetDragFromAcceleration(acceleration, maxSpeed);
 		_rigidbody.velocity *= Mathf.Clamp01(1f - (1f + _brakeInput * brakeStrength) * drag * Time.fixedDeltaTime);
+	}
+
+	private float GetVelocityFactor() {
+		return 1f - _rigidbody.velocity.magnitude / maxSpeed;
 	}
 }
