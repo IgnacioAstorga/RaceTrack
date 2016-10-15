@@ -5,10 +5,10 @@ using System.Collections.Generic;
 [CreateAssetMenu()]
 public class Shape2D : ScriptableObject {
 
-	public Vector2[] points;
-	public Vector2[] normals;
-	public float[] us;
-	public int[] lines;
+	public Vector2[] points = new Vector2[0];
+	public Vector2[] normals = new Vector2[0];
+	public float[] us = new float[0];
+	public int[] lines = new int[0];
 
 	public void AddPoint(params Vector2[] positions) {
 		Vector2[] newPoints = new Vector2[points.Length + positions.Length];

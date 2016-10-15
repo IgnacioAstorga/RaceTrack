@@ -62,7 +62,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 			}
 
 			// If no collider shape is specified, uses the visual one
-			if (colliderShape == null || colliderShape == visualShape)
+			if (colliderShape == null)
 				_meshCollider.sharedMesh = extrudedShape;
 			else
 				_meshCollider.sharedMesh = ExtrudeShape(colliderShape, coverShape);
@@ -163,7 +163,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		if (closeShape) {
 			try {
 				Mesh closedMesh = new Mesh();
-				if (coverShape == null || coverShape == visualShape)
+				if (coverShape == null)
 					closedMesh.CombineMeshes(CloseShape(mesh, visualShape), false, false);
 				else
 					closedMesh.CombineMeshes(CloseShape(mesh, coverShape), false, false);
