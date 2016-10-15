@@ -23,6 +23,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 	public int resolution = 5;
 	public InterpolationMethod interpolationMethod = InterpolationMethod.Bezier;
 	public bool recalculateNormals = true;
+	public bool closeShape = false;
 	public ControlPointRotation controlPointRotation = ControlPointRotation.Manual;
 
 	private Shape2DExtrudeControlPoint[] _controlPoints;
@@ -60,7 +61,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 			}
 
 			// If no collider shape is specified, uses the visual one
-			if (colliderShape == null)
+			if (colliderShape == null || colliderShape == visualShape)
 				_meshCollider.sharedMesh = extrudedShape;
 			else
 				_meshCollider.sharedMesh = ExtrudeShape(colliderShape);
@@ -147,7 +148,14 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		Mesh mesh = new Mesh();
 		mesh.vertices = CreateVertices(shape);
 		mesh.uv = CreateUVs(shape);
-		mesh.triangles = CreateTriangles(shape);
+
+		// Creates the mesh triangles
+		int[] meshTriangles = CreateTriangles(shape);
+		if (closeShape)
+
+			// If the shape is closed, create the additional triangles to cover the shape
+			CloseShape(shape, ref meshTriangles);
+		mesh.triangles = meshTriangles;
 
 		// Calculates the mesh's normals
 		if (recalculateNormals)
@@ -155,15 +163,12 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		else
 			mesh.normals = CreateNormals(shape);
 
-		// Recalculates the mesh's bounds
-		mesh.RecalculateBounds();
-
 		return mesh;
 	}
 
 	private Vector3[] CreateVertices(Shape2D shape) {
 		// Creates the vertices
-		Vector3[] meshVertices = new Vector3[resolution * _controlPoints.Length * shape.points.Length];
+		Vector3[] meshVertices = new Vector3[(resolution * (_controlPoints.Length - 1) + 1) * shape.points.Length];
 
 		// For each control point...
 		for (int controlPointIndex = 0; controlPointIndex < _controlPoints.Length; controlPointIndex++) {
@@ -194,12 +199,14 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 			}
 		}
 
+		Debug.DrawRay(meshVertices[meshVertices.Length - 1], Vector3.up);
+
 		return meshVertices;
 	}
 
 	private Vector3[] CreateNormals(Shape2D shape) {
 		// Creates the normals
-		Vector3[] meshNormals = new Vector3[resolution * _controlPoints.Length * shape.normals.Length];
+		Vector3[] meshNormals = new Vector3[(resolution * (_controlPoints.Length - 1) + 1) * shape.normals.Length];
 
 		// For each control point...
 		for (int controlPointIndex = 0; controlPointIndex < _controlPoints.Length; controlPointIndex++) {
@@ -233,7 +240,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 
 	private Vector2[] CreateUVs(Shape2D shape) {
 		// Creates the UVs
-		Vector2[] meshUVs = new Vector2[resolution * _controlPoints.Length * shape.us.Length];
+		Vector2[] meshUVs = new Vector2[(resolution * (_controlPoints.Length - 1) + 1) * shape.us.Length];
 
 		// For each control point...
 		for (int controlPointIndex = 0; controlPointIndex < _controlPoints.Length; controlPointIndex++) {
@@ -255,18 +262,18 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 					int meshUVIndex = meshUVBaseIndex + shapeUIndex;
 					meshUVs[meshUVIndex] = new Vector2(shape.us[shapeUIndex], interpolatedV);
 				}
-			}
 
-			// The last control point only has one resolution pass!
-			if (controlPointIndex == _controlPoints.Length - 1)
-				break;
+				// The last control point only has one resolution pass!
+				if (controlPointIndex == _controlPoints.Length - 1)
+					break;
+			}
 		}
 
 		return meshUVs;
 	}
 
 	private int[] CreateTriangles(Shape2D shape) {
-		// Creates the vertices
+		// Creates the triangles
 		int trianglesCount = 3 * resolution * (_controlPoints.Length - 1) * shape.lines.Length;
 		int[] meshTriangles = new int[trianglesCount];
 
@@ -278,8 +285,8 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 
 				// Caches some values
 				int meshTriangleBaseIndex = 3 * (resolutionPass + controlPointIndex * resolution ) * shape.lines.Length;
-				int meshVertexBaseIndex =  (resolutionPass + controlPointIndex * resolution) * shape.lines.Length;
-				int meshVertexNextBaseIndex = (resolutionPass + 1 + controlPointIndex * resolution) * shape.lines.Length;
+				int meshVertexBaseIndex =  (resolutionPass + controlPointIndex * resolution) * shape.points.Length;
+				int meshVertexNextBaseIndex = (resolutionPass + 1 + controlPointIndex * resolution) * shape.points.Length;
 
 				// For each line in the shape...
 				for (int shapeLineIndex = 0; shapeLineIndex < shape.lines.Length; shapeLineIndex += 2) {
@@ -301,6 +308,31 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		}
 
 		return meshTriangles;
+	}
+
+	private void CloseShape(Shape2D shape, ref int[] meshTriangles) {
+
+		// Triangulates the shape's points
+		Triangulator triangulator = new Triangulator(shape.points);
+		int[] coverTrianglesIndices = triangulator.Triangulate();
+
+		// The first cover uses those same vertices indices, but the other one uses other
+		int[] lastCoverTrianglesIndices = new int[coverTrianglesIndices.Length];
+
+		// The indices order is now reversed so the triangles face the other direction
+		int lastVerticesBaseIndex = (resolution * (_controlPoints.Length - 1)) * shape.points.Length;
+		for (int triangleIndex = 0; triangleIndex < coverTrianglesIndices.Length; triangleIndex += 3) {
+			lastCoverTrianglesIndices[triangleIndex] = lastVerticesBaseIndex + coverTrianglesIndices[triangleIndex + 2];
+			lastCoverTrianglesIndices[triangleIndex + 1] = lastVerticesBaseIndex + coverTrianglesIndices[triangleIndex + 1];
+			lastCoverTrianglesIndices[triangleIndex + 2] = lastVerticesBaseIndex + coverTrianglesIndices[triangleIndex];
+		}
+
+		// Adds these new triangles to the mesh
+		int destinationIndex = meshTriangles.Length;
+		Array.Resize(ref meshTriangles, meshTriangles.Length + coverTrianglesIndices.Length + lastCoverTrianglesIndices.Length);
+		Array.Copy(coverTrianglesIndices, 0, meshTriangles, destinationIndex, coverTrianglesIndices.Length);
+		destinationIndex += coverTrianglesIndices.Length;
+		Array.Copy(lastCoverTrianglesIndices, 0, meshTriangles, destinationIndex, lastCoverTrianglesIndices.Length);
 	}
 
 	public Vector3 InterpolatePosition(float interpolationFactor) {
