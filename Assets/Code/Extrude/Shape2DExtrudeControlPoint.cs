@@ -12,6 +12,9 @@ public class Shape2DExtrudeControlPoint : MonoBehaviour {
 	void Awake() {
 		_transform = transform;
 		_segment = GetComponentInParent<Shape2DExtrudeSegment>();
+
+		if (_segment == null)
+			Debug.LogWarning("The control point is not child of a Shape2DExtrudeSegment!");
 	}
 
 	public Transform GetTransform() {
