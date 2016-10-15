@@ -14,10 +14,12 @@ public class VehicleController : MonoBehaviour {
 	public float turnRate = 45f;
 	public float acceleration = 10f;
 	public float maxSpeed = 50f;
+	public float brakeStrength = 5f;
 
 	private float _horizontalInput;
 	private float _accelerateInput;
-
+	private float _brakeInput;
+	
 	private Vector3 _gravity;
 
 	private CharacterController _characterController;
@@ -41,6 +43,9 @@ public class VehicleController : MonoBehaviour {
 
 		// Reads the aaceleration input
 		_accelerateInput = Input.GetAxis("Accelerate");
+
+		// Reads the aaceleration input
+		_brakeInput = Input.GetAxis("Brake");
 	}
 
 	void FixedUpdate() {
@@ -103,7 +108,7 @@ public class VehicleController : MonoBehaviour {
 
 		// Applies drag to the velocity
 		float drag = Acceleration.GetDragFromAcceleration(acceleration, maxSpeed);
-		Velocity *= Mathf.Clamp01(1f - drag * Time.fixedDeltaTime);
+		Velocity *= Mathf.Clamp01(1f - (1f + _brakeInput * brakeStrength) * drag * Time.fixedDeltaTime);
 	}
 
 	private void Move() {
@@ -117,8 +122,10 @@ public class VehicleController : MonoBehaviour {
 		// In order to get a smooth normal, we need more information
 		Vector3 normal = hit.normal;
 		RaycastHit colliderHit;
-		if (hit.collider.Raycast(new Ray(hit.point + hit.normal, -hit.normal), out colliderHit, 2 * hit.moveLength))
+		Debug.DrawRay(hit.point + hit.normal, -hit.normal * 2 * hit.moveLength, Color.blue);
+		if (hit.collider.Raycast(new Ray(hit.point + hit.normal, -hit.normal), out colliderHit, 2 * hit.moveLength)) {
 			normal = colliderHit.SmoothedNormal();
+		}
 
 		// Projects the velocity along the hit surface
 		Velocity = Vector3.ProjectOnPlane(Velocity, normal);
