@@ -13,7 +13,8 @@ public class Shape2DExtrude : MonoBehaviour {
 	}
 
 	void Start() {
-		ChainSegments();
+		if (chainSegments)
+			ChainSegments();
 	}
 
 	void Update() {

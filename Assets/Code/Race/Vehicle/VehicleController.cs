@@ -93,12 +93,9 @@ public class VehicleController : MonoBehaviour {
 	private void OrientateToGravity() {
 
 		// Orientates the vehicle to match the gravity
-		float normalAngle = Vector3.Angle(_transform.up, -_gravity);
-		Vector3 normalAxis = Vector3.Cross(_transform.up, -_gravity);
-		if (normalAngle > 0) {
-			Quaternion targetRotation = Quaternion.AngleAxis(normalAngle, normalAxis) * _transform.rotation;
-			_transform.rotation = Quaternion.RotateTowards(_transform.rotation, targetRotation, gravityReorientationSpeed * Time.deltaTime);
-		}
+		Vector3 projectedForward = Vector3.ProjectOnPlane(_transform.forward, -_gravity);
+		Quaternion targetRotation = Quaternion.LookRotation(projectedForward, -_gravity);
+		_transform.rotation = Quaternion.RotateTowards(_transform.rotation, targetRotation, gravityReorientationSpeed * Time.deltaTime);
 	}
 
 	private void HoverOverTrack() {
@@ -106,6 +103,10 @@ public class VehicleController : MonoBehaviour {
 		// Adds force to the vehicle to separate it from the track
 		RaycastHit trackHit;
 		if (Physics.Raycast(_transform.position, -_transform.up, out trackHit, hoverDistance, raceTrackLayer)) {
+
+			// Fist, projects the velocity into the track's curvature
+			Vector3 projectedVelocity = Vector3.ProjectOnPlane(_rigidbody.velocity, trackHit.SmoothedNormal());
+			_rigidbody.velocity = projectedVelocity.normalized * _rigidbody.velocity.magnitude;
 
 			// The amount of force added is proportional to how close the vehicle is to the ground
 			float proportionalDistance = 1f - trackHit.distance / hoverDistance;
