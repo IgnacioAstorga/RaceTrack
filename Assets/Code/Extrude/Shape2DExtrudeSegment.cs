@@ -24,6 +24,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 	public InterpolationMethod interpolationMethod = InterpolationMethod.Bezier;
 	public bool recalculateNormals = true;
 	public bool closeShape = false;
+	public Shape2D coverShape;
 	public ControlPointRotation controlPointRotation = ControlPointRotation.Manual;
 
 	private Shape2DExtrudeControlPoint[] _controlPoints;
@@ -50,7 +51,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		CalculateControlPointsRotation();
 
 		// Extrudes the shape using the control points
-		Mesh extrudedShape = ExtrudeShape(visualShape);
+		Mesh extrudedShape = ExtrudeShape(visualShape, coverShape);
 		_meshFilter.sharedMesh = extrudedShape;
 
 		// Creates the collider
@@ -64,7 +65,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 			if (colliderShape == null || colliderShape == visualShape)
 				_meshCollider.sharedMesh = extrudedShape;
 			else
-				_meshCollider.sharedMesh = ExtrudeShape(colliderShape);
+				_meshCollider.sharedMesh = ExtrudeShape(colliderShape, coverShape);
 		}
 	}
 
@@ -137,7 +138,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		}
 	}
 
-	private Mesh ExtrudeShape(Shape2D shape) {
+	private Mesh ExtrudeShape(Shape2D visualShape, Shape2D coverShape = null) {
 		// At least two control points are needed to extrude the shape
 		if (_controlPoints.Length < 2) {
 			Debug.LogWarning("WARNING: At least 2 control points needed to extrude!");
@@ -146,27 +147,38 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 
 		// Creates and populates the mesh
 		Mesh mesh = new Mesh();
-		mesh.vertices = CreateVertices(shape);
-		mesh.uv = CreateUVs(shape);
+		mesh.vertices = CreateVertices(visualShape);
+		mesh.uv = CreateUVs(visualShape);
 
 		// Creates the mesh triangles
-		int[] meshTriangles = CreateTriangles(shape);
-		if (closeShape)
-
-			// If the shape is closed, create the additional triangles to cover the shape
-			CloseShape(shape, ref meshTriangles);
-		mesh.triangles = meshTriangles;
+		mesh.triangles = CreateTriangles(visualShape);
 
 		// Calculates the mesh's normals
 		if (recalculateNormals)
 			mesh.RecalculateNormals();
 		else
-			mesh.normals = CreateNormals(shape);
+			mesh.normals = CreateNormals(visualShape);
+
+		// If the shape is closed, adds the covers
+		if (closeShape) {
+			try {
+				Mesh closedMesh = new Mesh();
+				if (coverShape == null || coverShape == visualShape)
+					closedMesh.CombineMeshes(CloseShape(mesh, visualShape), false, false);
+				else
+					closedMesh.CombineMeshes(CloseShape(mesh, coverShape), false, false);
+				mesh = closedMesh;
+			}
+			catch(InvalidOperationException) {
+				Debug.LogError("ERROR: The selected shape is not closed and cannot be used as a cover!");
+			}
+		}
 
 		return mesh;
 	}
 
 	private Vector3[] CreateVertices(Shape2D shape) {
+
 		// Creates the vertices
 		Vector3[] meshVertices = new Vector3[(resolution * (_controlPoints.Length - 1) + 1) * shape.points.Length];
 
@@ -185,13 +197,9 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 				// Caches some values
 				int meshVertexBaseIndex = (controlPointIndex * resolution + resolutionPass) * shape.points.Length;
 
-				// For each point in the shape...
-				for (int shapePointIndex = 0; shapePointIndex < shape.points.Length; shapePointIndex++) {
-
-					// Creates a vertex for each point using the interpolated information
-					int meshVertexIndex = meshVertexBaseIndex + shapePointIndex;
-					meshVertices[meshVertexIndex] = Shape2DExtrudeControlPoint.TransformPoint(shape.points[shapePointIndex], interpolatedPosition, interpolatedRotation, interpolatedScale);
-				}
+				// Creates a vertex for each point using the interpolated information
+				Vector3[] newVertices = VerticesFromShape(shape, interpolatedPosition, interpolatedRotation, interpolatedScale);
+				Array.Copy(newVertices, 0, meshVertices, meshVertexBaseIndex, newVertices.Length);
 
 				// The last control point only has one resolution pass!
 				if (controlPointIndex == _controlPoints.Length - 1)
@@ -199,12 +207,18 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 			}
 		}
 
-		Debug.DrawRay(meshVertices[meshVertices.Length - 1], Vector3.up);
-
 		return meshVertices;
 	}
 
+	private Vector3[] VerticesFromShape(Shape2D shape , Vector3 position, Quaternion rotation, Vector3 scale) {
+		Vector3[] vertices = new Vector3[shape.points.Length];
+		for (int shapePointIndex = 0; shapePointIndex < shape.points.Length; shapePointIndex++)
+			vertices[shapePointIndex] = Shape2DExtrudeControlPoint.TransformPoint(shape.points[shapePointIndex], position, rotation, scale);
+		return vertices;
+	}
+
 	private Vector3[] CreateNormals(Shape2D shape) {
+
 		// Creates the normals
 		Vector3[] meshNormals = new Vector3[(resolution * (_controlPoints.Length - 1) + 1) * shape.normals.Length];
 
@@ -239,6 +253,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 	}
 
 	private Vector2[] CreateUVs(Shape2D shape) {
+
 		// Creates the UVs
 		Vector2[] meshUVs = new Vector2[(resolution * (_controlPoints.Length - 1) + 1) * shape.us.Length];
 
@@ -273,6 +288,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 	}
 
 	private int[] CreateTriangles(Shape2D shape) {
+
 		// Creates the triangles
 		int trianglesCount = 3 * resolution * (_controlPoints.Length - 1) * shape.lines.Length;
 		int[] meshTriangles = new int[trianglesCount];
@@ -310,29 +326,56 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		return meshTriangles;
 	}
 
-	private void CloseShape(Shape2D shape, ref int[] meshTriangles) {
+	private CombineInstance[] CloseShape(Mesh originalMesh, Shape2D shape) {
+
+		// Creates the structure that will hold the mesh and both covers
+		CombineInstance[] covers = new CombineInstance[3];
+		covers[0] = new CombineInstance();
+		covers[1] = new CombineInstance();
+		covers[2] = new CombineInstance();
+
+		// Creates the covers
+		covers[0].mesh = originalMesh;
+		covers[1].mesh = CreateCover(shape, 0, false);
+		covers[2].mesh = CreateCover(shape, _controlPoints.Length - 1, true);
+
+		return covers;
+	}
+
+	private Mesh CreateCover(Shape2D shape, int controlPointIndex, bool reverse = false) {
+
+		// Creates a mesh and populates it
+		Mesh mesh = new Mesh();
+
+		// Creates the vertices
+		Vector3 interpolatedPosition = InterpolatePosition(controlPointIndex);
+		Quaternion interpolatedRotation = InterpolateRotation(controlPointIndex);
+		Vector3 interpolatedScale = InterpolateScale(controlPointIndex);
+		mesh.vertices = VerticesFromShape(shape, interpolatedPosition, interpolatedRotation, interpolatedScale);
 
 		// Triangulates the shape's points
 		Triangulator triangulator = new Triangulator(shape.points);
 		int[] coverTrianglesIndices = triangulator.Triangulate();
+		if (reverse) {
 
-		// The first cover uses those same vertices indices, but the other one uses other
-		int[] lastCoverTrianglesIndices = new int[coverTrianglesIndices.Length];
-
-		// The indices order is now reversed so the triangles face the other direction
-		int lastVerticesBaseIndex = (resolution * (_controlPoints.Length - 1)) * shape.points.Length;
-		for (int triangleIndex = 0; triangleIndex < coverTrianglesIndices.Length; triangleIndex += 3) {
-			lastCoverTrianglesIndices[triangleIndex] = lastVerticesBaseIndex + coverTrianglesIndices[triangleIndex + 2];
-			lastCoverTrianglesIndices[triangleIndex + 1] = lastVerticesBaseIndex + coverTrianglesIndices[triangleIndex + 1];
-			lastCoverTrianglesIndices[triangleIndex + 2] = lastVerticesBaseIndex + coverTrianglesIndices[triangleIndex];
+			// The triangle order is now reversed so the triangles face the other direction
+			for (int triangleIndex = 0; triangleIndex < coverTrianglesIndices.Length; triangleIndex += 3) {
+				int temp = coverTrianglesIndices[triangleIndex];
+				coverTrianglesIndices[triangleIndex] = coverTrianglesIndices[triangleIndex + 2];
+				coverTrianglesIndices[triangleIndex + 2] = temp;
+			}
 		}
+		mesh.triangles = coverTrianglesIndices;
 
-		// Adds these new triangles to the mesh
-		int destinationIndex = meshTriangles.Length;
-		Array.Resize(ref meshTriangles, meshTriangles.Length + coverTrianglesIndices.Length + lastCoverTrianglesIndices.Length);
-		Array.Copy(coverTrianglesIndices, 0, meshTriangles, destinationIndex, coverTrianglesIndices.Length);
-		destinationIndex += coverTrianglesIndices.Length;
-		Array.Copy(lastCoverTrianglesIndices, 0, meshTriangles, destinationIndex, lastCoverTrianglesIndices.Length);
+		// If the shape is not closed, no triangles have been created. Throw an exception
+		if (coverTrianglesIndices.Length == 0)
+			throw new InvalidOperationException("The cover shape is not closed!");
+
+		// Finally, calculates the normals and bound
+		mesh.RecalculateNormals();
+		mesh.RecalculateBounds();
+
+		return mesh;
 	}
 
 	public Vector3 InterpolatePosition(float interpolationFactor) {
