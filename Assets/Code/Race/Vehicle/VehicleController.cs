@@ -3,9 +3,12 @@
 [RequireComponent(typeof(Rigidbody))]
 public class VehicleController : MonoBehaviour {
 
+	public bool Grounded { get; private set; }
+
+	public Transform[] hoverPoints;
 	public LayerMask raceTrackLayer;
 	public float gravityRayMaxDistance = 10f;
-	public float gravityReorientationSpeed = 360f;
+	public float gravityReorientationSpeed = 5f;
 
 	public float hoverDistance = 1f;
 	public float hoverForce = 50f;
@@ -66,10 +69,7 @@ public class VehicleController : MonoBehaviour {
 		// Calculates the gravity from the track's curvature
 		CalculateGravity();
 
-		// Orientates the vehicle to match the gravity
-		OrientateToGravity();
-
-		// Makes the vehicle hover
+		// Makes the vehicle hover, orientating it to match the track
 		HoverOverTrack();
 	}
 
@@ -90,28 +90,55 @@ public class VehicleController : MonoBehaviour {
 		}
 	}
 
-	private void OrientateToGravity() {
-
-		// Orientates the vehicle to match the gravity
-		Vector3 projectedForward = Vector3.ProjectOnPlane(_transform.forward, -_gravity);
-		Quaternion targetRotation = Quaternion.LookRotation(projectedForward, -_gravity);
-		_transform.rotation = Quaternion.RotateTowards(_transform.rotation, targetRotation, gravityReorientationSpeed * Time.deltaTime);
-	}
-
 	private void HoverOverTrack() {
 
-		// Adds force to the vehicle to separate it from the track
-		RaycastHit trackHit;
-		if (Physics.Raycast(_transform.position, -_transform.up, out trackHit, hoverDistance, raceTrackLayer)) {
+		// Checks the average center and normal of the hover points
+		Vector3 hoverCenter = Vector3.zero;
+		Vector3 hoverNormal = Vector3.zero;
+		int rayHitCount = 0;
 
-			// Fist, projects the velocity into the track's curvature
-			Vector3 projectedVelocity = Vector3.ProjectOnPlane(_rigidbody.velocity, trackHit.SmoothedNormal());
+		// For each hover point...
+		for (int hoverPointIndex = 0; hoverPointIndex < hoverPoints.Length; hoverPointIndex++) {
+
+			// Casts a ray on the gravity direction to find the closest point in the track
+			RaycastHit trackHit;
+			if (Physics.Raycast(hoverPoints[hoverPointIndex].position, _gravity, out trackHit, hoverDistance, raceTrackLayer)) {
+
+				// Accumulates their values
+				hoverCenter += trackHit.point;
+				hoverNormal += trackHit.SmoothedNormal();
+				rayHitCount++;
+			}
+		}
+
+		if (rayHitCount == 0) {
+
+			// If none of the ray hits, uses the gravity direction as normal
+			hoverNormal = -_gravity;
+			Grounded = false;
+		}
+		else {
+
+			// Calculates the average values
+			hoverCenter /= rayHitCount;
+			hoverNormal /= rayHitCount;
+			Grounded = true;
+
+			// In order to smooth the movement, projects the velocity into the track's curvature
+			Vector3 projectedVelocity = Vector3.ProjectOnPlane(_rigidbody.velocity, hoverNormal);
 			_rigidbody.velocity = projectedVelocity.normalized * _rigidbody.velocity.magnitude;
 
+			// Adds force to the vehicle to separate it from the track
 			// The amount of force added is proportional to how close the vehicle is to the ground
-			float proportionalDistance = 1f - trackHit.distance / hoverDistance;
+			float distanceToTrack = (hoverCenter - _transform.position).magnitude;
+			float proportionalDistance = 1f - distanceToTrack / hoverDistance;
 			_rigidbody.AddForce(_transform.up * proportionalDistance * hoverForce);
 		}
+
+		// Orientates the vehicle to match the normal
+		Vector3 projectedForward = Vector3.ProjectOnPlane(_transform.forward, hoverNormal);
+		Quaternion targetRotation = Quaternion.LookRotation(projectedForward, hoverNormal);
+		_transform.rotation = Quaternion.Lerp(_transform.rotation, targetRotation, gravityReorientationSpeed * Time.deltaTime);
 	}
 
 	private void TurnVehicle() {
