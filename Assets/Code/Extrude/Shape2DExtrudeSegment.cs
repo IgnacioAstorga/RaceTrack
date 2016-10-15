@@ -398,10 +398,11 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		float lerpFactor = interpolationFactor - Mathf.Floor(interpolationFactor);
 		switch (interpolationMethod) {
 			case InterpolationMethod.Linear:
-				return Quaternion.Lerp(startControlPoint.GetRotation(), endControlPoint.GetRotation(), lerpFactor);
 			case InterpolationMethod.Bezier:
-				Vector3 upDirection = Vector3.Lerp(startControlPoint.GetUpDirection(), endControlPoint.GetUpDirection(), lerpFactor);
-				return BezierCurve.BezierOrientation(startControlPoint.GetPosition(), startControlPoint.GetForwardHandlePosition(), endControlPoint.GetPosition(), endControlPoint.GetBackwardHandlePosition(), lerpFactor, upDirection);
+				return Quaternion.Lerp(startControlPoint.GetRotation(), endControlPoint.GetRotation(), lerpFactor);
+			//case InterpolationMethod.Bezier:
+				//Vector3 upDirection = Vector3.Lerp(startControlPoint.GetUpDirection(), endControlPoint.GetUpDirection(), lerpFactor);
+				//return BezierCurve.BezierOrientation(startControlPoint.GetPosition(), startControlPoint.GetForwardHandlePosition(), endControlPoint.GetPosition(), endControlPoint.GetBackwardHandlePosition(), lerpFactor, upDirection);
 			default:
 				throw new InvalidOperationException("The current interpolation method is not supported: " + interpolationMethod);
 		}

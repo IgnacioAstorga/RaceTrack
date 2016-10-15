@@ -8,11 +8,10 @@ public class VehicleController : MonoBehaviour {
 	public Transform model;
 
 	public Transform[] hoverPoints;
-	public LayerMask trackGravityLayer;
 	public float gravityRayMaxDistance = 10f;
 	public float gravityReorientationSpeed = 5f;
 
-	public LayerMask trackCollisionLayer;
+	public LayerMask trackLayer;
 	public float hoverDistance = 1f;
 	public float hoverForce = 50f;
 	public float tiltAngle = 15f;
@@ -90,11 +89,15 @@ public class VehicleController : MonoBehaviour {
 		// Casts a ray downwards to check for the track orientation
 		RaycastHit trackHit;
 		Vector3 targetGravity = Physics.gravity;
-		if (Physics.Raycast(_transform.position, -_transform.up, out trackHit, gravityRayMaxDistance, trackGravityLayer)) {
+		if (Physics.Raycast(_transform.position, -_transform.up, out trackHit, gravityRayMaxDistance, trackLayer)) {
 
-			// Uses the track orientation for the gravity
-			float gravityMagnitude = Physics.gravity.magnitude;
-			targetGravity = -trackHit.SmoothedNormal() * gravityMagnitude;
+			// Checks if the track supports gravity
+			if (!trackHit.collider.CompareTag("NoGravity")) {
+
+				// Uses the track orientation for the gravity
+				float gravityMagnitude = Physics.gravity.magnitude;
+				targetGravity = -trackHit.SmoothedNormal() * gravityMagnitude;
+			}
 		}
 
 		// Lerps the gravity to it's target value
@@ -112,7 +115,7 @@ public class VehicleController : MonoBehaviour {
 
 			// Casts a ray on the gravity direction to find the closest point in the track
 			RaycastHit trackHit;
-			if (Physics.Raycast(hoverPoints[hoverPointIndex].position, _gravity, out trackHit, hoverDistance, trackCollisionLayer)) {
+			if (Physics.Raycast(hoverPoints[hoverPointIndex].position, _gravity, out trackHit, hoverDistance, trackLayer)) {
 
 				// Accumulates their values
 				hoverNormal += trackHit.SmoothedNormal();
