@@ -8,10 +8,11 @@ public class VehicleController : MonoBehaviour {
 	public Transform model;
 
 	public Transform[] hoverPoints;
-	public LayerMask raceTrackLayer;
+	public LayerMask trackGravityLayer;
 	public float gravityRayMaxDistance = 10f;
 	public float gravityReorientationSpeed = 5f;
 
+	public LayerMask trackCollisionLayer;
 	public float hoverDistance = 1f;
 	public float hoverForce = 50f;
 	public float tiltAngle = 15f;
@@ -88,23 +89,21 @@ public class VehicleController : MonoBehaviour {
 
 		// Casts a ray downwards to check for the track orientation
 		RaycastHit trackHit;
-		if (Physics.Raycast(_transform.position, -_transform.up, out trackHit, gravityRayMaxDistance, raceTrackLayer)) {
+		Vector3 targetGravity = Physics.gravity;
+		if (Physics.Raycast(_transform.position, -_transform.up, out trackHit, gravityRayMaxDistance, trackGravityLayer)) {
 
 			// Uses the track orientation for the gravity
 			float gravityMagnitude = Physics.gravity.magnitude;
-			_gravity = -trackHit.SmoothedNormal() * gravityMagnitude;
+			targetGravity = -trackHit.SmoothedNormal() * gravityMagnitude;
 		}
-		else {
 
-			// If the track was not hit, uses the default gravity
-			_gravity = Physics.gravity;
-		}
+		// Lerps the gravity to it's target value
+		_gravity = Vector3.Lerp(_gravity, targetGravity, gravityReorientationSpeed * Time.deltaTime);
 	}
 
 	private void HoverOverTrack() {
 
-		// Checks the average center and normal of the hover points
-		Vector3 hoverCenter = Vector3.zero;
+		// Checks the average normal of the hover points
 		Vector3 hoverNormal = Vector3.zero;
 		int rayHitCount = 0;
 
@@ -113,12 +112,16 @@ public class VehicleController : MonoBehaviour {
 
 			// Casts a ray on the gravity direction to find the closest point in the track
 			RaycastHit trackHit;
-			if (Physics.Raycast(hoverPoints[hoverPointIndex].position, _gravity, out trackHit, hoverDistance, raceTrackLayer)) {
+			if (Physics.Raycast(hoverPoints[hoverPointIndex].position, _gravity, out trackHit, hoverDistance, trackCollisionLayer)) {
 
 				// Accumulates their values
-				hoverCenter += trackHit.point;
 				hoverNormal += trackHit.SmoothedNormal();
 				rayHitCount++;
+
+				// Adds force to the vehicle to separate it from the track
+				// The amount of force added is proportional to how close the vehicle is to the ground
+				float proportionalDistance = 1f - trackHit.distance / hoverDistance;
+				_rigidbody.AddForceAtPosition(trackHit.normal * proportionalDistance * hoverForce / hoverPoints.Length, hoverPoints[hoverPointIndex].position);
 			}
 		}
 
@@ -130,20 +133,13 @@ public class VehicleController : MonoBehaviour {
 		}
 		else {
 
-			// Calculates the average values
-			hoverCenter /= rayHitCount;
+			// Calculates the average value
 			hoverNormal /= rayHitCount;
 			Grounded = true;
 
 			// In order to smooth the movement, projects the velocity into the track's curvature
 			Vector3 projectedVelocity = Vector3.ProjectOnPlane(_rigidbody.velocity, hoverNormal);
 			_rigidbody.velocity = projectedVelocity.normalized * _rigidbody.velocity.magnitude;
-
-			// Adds force to the vehicle to separate it from the track
-			// The amount of force added is proportional to how close the vehicle is to the ground
-			float distanceToTrack = (hoverCenter - _transform.position).magnitude;
-			float proportionalDistance = 1f - distanceToTrack / hoverDistance;
-			_rigidbody.AddForce(_transform.up * proportionalDistance * hoverForce);
 		}
 
 		// Orientates the vehicle to match the normal
