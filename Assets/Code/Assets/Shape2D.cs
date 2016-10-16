@@ -5,6 +5,12 @@ using System.Collections.Generic;
 [CreateAssetMenu()]
 public class Shape2D : ScriptableObject {
 
+	public enum ConnectionType {
+		None,
+		Direct,
+		Reverse
+	}
+
 	public Vector2[] points = new Vector2[0];
 	public Vector2[] normals = new Vector2[0];
 	public float[] us = new float[0];
@@ -84,14 +90,14 @@ public class Shape2D : ScriptableObject {
 		lines = newLines.ToArray();
 	}
 
-	public bool AreConnected(int pointA, int pointB) {
+	public ConnectionType AreConnected(int pointA, int pointB) {
 		for (int line = 0; line < lines.Length; line += 2) {
 			if (lines[line] == pointA && lines[line + 1] == pointB)
-				return true;
+				return ConnectionType.Direct;
 			if (lines[line] == pointB && lines[line + 1] == pointA)
-				return true;
+				return ConnectionType.Reverse;
 		}
-		return false;
+		return ConnectionType.None;
 	}
 
 	public void RecalculateNormals(IEnumerable<int> normalIndices) {

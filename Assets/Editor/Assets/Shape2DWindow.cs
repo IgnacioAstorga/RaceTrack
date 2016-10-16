@@ -1136,29 +1136,46 @@ public class Shape2DWindow : EditorWindow {
 		try {
 			int index = Convert.ToInt32(pointIndex);
 			List<int> lineOrigins = new List<int>();
+			List<int> lineDestinations = new List<int>();
 			for (int line = 0; line < _shape2D.lines.Length; line += 2) {
-				if (_shape2D.lines[line] == index)
-					lineOrigins.Add(_shape2D.lines[line + 1]);
-				else if (_shape2D.lines[line + 1] == index)
+				if (_shape2D.lines[line + 1] == index)
 					lineOrigins.Add(_shape2D.lines[line]);
+				if (_shape2D.lines[line] == index)
+					lineDestinations.Add(_shape2D.lines[line + 1]);
 			}
 
-			if (lineOrigins.Count <= 1) {
+			if (lineOrigins.Count + lineDestinations.Count <= 1) {
 				Debug.LogWarning("WARNING: The selected point doesn't have enough lines to break.");
 				return;
 			}
 			
 			Vector2 point = _shape2D.points[index];
 			float u = _shape2D.us[index];
-			_shape2D.DeletePoint(index);
+			DeletePoint(index);
+			_selection.Clear();
+
 			for (int i = 0; i < lineOrigins.Count; i++)
 				if (lineOrigins[i] > index)
 					lineOrigins[i] -= 1;
+			for (int i = 0; i < lineOrigins.Count; i++)
+				if (lineOrigins[i] > index)
+					lineOrigins[i] -= 1;
+
 			foreach (int origin in lineOrigins) {
 				_shape2D.AddPoint(point);
-				_shape2D.CreateLine(origin, _shape2D.points.Length - 1);
-				_shape2D.RecalculateNormal(_shape2D.points.Length - 1);
-				_shape2D.us[_shape2D.points.Length - 1] = u;
+				int newPointIndex = _shape2D.points.Length - 1;
+				_shape2D.CreateLine(origin, newPointIndex);
+				_shape2D.RecalculateNormal(newPointIndex);
+				_shape2D.us[newPointIndex] = u;
+				_selection.Add(newPointIndex);
+			}
+			foreach (int destination in lineDestinations) {
+				_shape2D.AddPoint(point);
+				int newPointIndex = _shape2D.points.Length - 1;
+				_shape2D.CreateLine(newPointIndex, destination);
+				_shape2D.RecalculateNormal(newPointIndex);
+				_shape2D.us[newPointIndex] = u;
+				_selection.Add(newPointIndex);
 			}
 		}
 		catch (Exception e) {
@@ -1168,13 +1185,13 @@ public class Shape2DWindow : EditorWindow {
 
 	private void CreateLineBetweenSelectedPoints() {
 		if (_selection.Count < 2) {
-			Debug.LogWarning("WARNING: Atpempted to create a line with an invalid number of points selected!");
+			Debug.LogWarning("WARNING: Attempted to create a line with an invalid number of points selected!");
 			return;
 		}
 		int[] points = new int[_selection.Count];
 		_selection.CopyTo(points);
 		for (int i = 0; i < points.Length - 1; i++)
-			if (!_shape2D.AreConnected(points[i], points[i + 1]))
+			if (_shape2D.AreConnected(points[i], points[i + 1]) == Shape2D.ConnectionType.None)
 				_shape2D.CreateLine(points[i], points[i + 1]);
 	}
 
@@ -1212,17 +1229,29 @@ public class Shape2DWindow : EditorWindow {
 		int[] points = new int[_selection.Count];
 		_selection.CopyTo(points);
 		_selection.Clear();
-		for (int i = 0; i < points.Length; i++)
-			for (int j = i + 1; j < points.Length; j++)
-				if (_shape2D.AreConnected(points[i], points[j])) {
+		for (int i = 0; i < points.Length; i++) {
+			for (int j = i + 1; j < points.Length; j++) {
+				Shape2D.ConnectionType connection = _shape2D.AreConnected(points[i], points[j]);
+				if (connection != Shape2D.ConnectionType.None) {
 					_shape2D.RemoveLine(points[i], points[j]);
 					_shape2D.AddPoint((_shape2D.points[points[i]] + _shape2D.points[points[j]]) / 2);
-					_shape2D.normals[_shape2D.normals.Length - 1] = (_shape2D.normals[points[i]] + _shape2D.normals[points[j]]) / 2;
+					int newPointIndex = _shape2D.points.Length - 1;
+					_shape2D.normals[newPointIndex] = (_shape2D.normals[points[i]] + _shape2D.normals[points[j]]) / 2;
 					_shape2D.us[_shape2D.us.Length - 1] = (_shape2D.us[points[i]] + _shape2D.us[points[j]]) / 2;
-					_shape2D.CreateLine(points[i], _shape2D.points.Length - 1);
-					_shape2D.CreateLine(points[j], _shape2D.points.Length - 1);
-					_selection.Add(_shape2D.points.Length - 1);
+
+					if (connection == Shape2D.ConnectionType.Direct) {
+						_shape2D.CreateLine(points[i], newPointIndex);
+						_shape2D.CreateLine(newPointIndex, points[j]);
+					}
+					else if (connection == Shape2D.ConnectionType.Reverse) {
+						_shape2D.CreateLine(points[j], newPointIndex);
+						_shape2D.CreateLine(newPointIndex, points[i]);
+					}
+
+					_selection.Add(newPointIndex);
 				}
+			}
+		}
 	}
 
 	private void MirrorSelectionHorizontal(object global) {
