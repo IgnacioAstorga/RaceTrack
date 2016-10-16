@@ -1030,20 +1030,21 @@ public class Shape2DWindow : EditorWindow {
 
 	private void RemovePoint(object pointIndex) {
 		try {
-			// Saves lines origins
+			// Saves lines origins and destinations
 			int index = Convert.ToInt32(pointIndex);
 			List<int> lineOrigins = new List<int>();
+			List<int> lineDestinations = new List<int>();
 			for (int line = 0; line < _shape2D.lines.Length; line += 2) {
-				if (_shape2D.lines[line] == index && _shape2D.lines[line + 1] != index)
-					lineOrigins.Add(_shape2D.lines[line + 1]);
-				else if (_shape2D.lines[line] != index && _shape2D.lines[line + 1] == index)
+				if (_shape2D.lines[line] != index && _shape2D.lines[line + 1] == index)
 					lineOrigins.Add(_shape2D.lines[line]);
+				if (_shape2D.lines[line] == index && _shape2D.lines[line + 1] != index)
+					lineDestinations.Add(_shape2D.lines[line + 1]);
 			}
 
 			// Creates lines between them
 			for (int i = 0; i < lineOrigins.Count; i++)
-				for (int j = i + 1; j < lineOrigins.Count; j++)
-					_shape2D.CreateLine(lineOrigins[i], lineOrigins[j]);
+				for (int j = 0; j < lineDestinations.Count; j++)
+					_shape2D.CreateLine(lineOrigins[i], lineDestinations[j]);
 
 			// Removes the point
 			DeletePoint(pointIndex);
