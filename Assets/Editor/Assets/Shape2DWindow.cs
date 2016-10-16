@@ -807,11 +807,12 @@ public class Shape2DWindow : EditorWindow {
 	private void MergePoints(Vector2 point, Vector2 normal, float u) {
 		// Stores the lines to the selected points
 		List<int> lineOrigins = new List<int>();
+		List<int> lineDestinations = new List<int>();
 		for (int i = 0; i < _shape2D.lines.Length; i += 2) {
-			if (_selection.Contains(_shape2D.lines[i]) && !_selection.Contains(_shape2D.lines[i + 1]))
-				lineOrigins.Add(_shape2D.lines[i + 1]);
 			if (!_selection.Contains(_shape2D.lines[i]) && _selection.Contains(_shape2D.lines[i + 1]))
 				lineOrigins.Add(_shape2D.lines[i]);
+			if (_selection.Contains(_shape2D.lines[i]) && !_selection.Contains(_shape2D.lines[i + 1]))
+				lineDestinations.Add(_shape2D.lines[i + 1]);
 		}
 
 		// Stores the selection
@@ -828,6 +829,8 @@ public class Shape2DWindow : EditorWindow {
 		// Recreates the lines
 		foreach (int lineOrigin in lineOrigins)
 			_shape2D.CreateLine(lineOrigin, pointIndex);
+		foreach (int lineDestination in lineDestinations)
+			_shape2D.CreateLine(pointIndex, lineDestination);
 
 		// Removes the selected points
 		Array.Sort(selectionCopy);
