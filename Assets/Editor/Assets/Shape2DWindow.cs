@@ -76,10 +76,9 @@ public class Shape2DWindow : EditorWindow {
 		// Draw Shape & Handle Events
 		if (_shape2D != null) {
 
-			EditorUtility.SetDirty(_shape2D);
-
 			// Records an Undo command
 			Undo.RecordObject(_shape2D, "Modify Shape2D");
+			EditorUtility.SetDirty(_shape2D);
 
 			// Draws the upper ribbon
 			DrawUpperRibbon();
