@@ -1311,14 +1311,14 @@ public class Shape2DWindow : EditorWindow {
 
 			HashSet<int> remainingPoints = new HashSet<int>();
 			for (int i = 0; i < _shape2D.points.Length; i++)
-				remainingPoints.Add(i);
-			remainingPoints.Remove(initialIndex);
+				if (i != initialIndex)
+					remainingPoints.Add(i);
 
 			Stack<int> pointsToCheck = new Stack<int>();
 			pointsToCheck.Push(initialIndex);
 
 
-			while (remainingPoints.Count > 0) {
+			while (remainingPoints.Count > 0 || pointsToCheck.Count > 0) {
 				while (pointsToCheck.Count > 0) {
 					int currentPoint = pointsToCheck.Pop();
 					list.Add(currentPoint);
