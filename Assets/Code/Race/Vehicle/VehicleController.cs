@@ -11,7 +11,9 @@ public class VehicleController : MonoBehaviour {
 
 	public Transform[] hoverPoints;
 	public float gravityRayMaxDistance = 10f;
-	public float gravityReorientationSpeed = 5f;
+
+	public float groundedReorientationSpeed = 5f;
+	public float airborneReorientationSpeed = 5f;
 
 	public LayerMask trackLayer;
 	public float hoverDistance = 1f;
@@ -103,7 +105,7 @@ public class VehicleController : MonoBehaviour {
 		}
 
 		// Lerps the gravity to it's target value
-		_gravity = Vector3.Lerp(_gravity, targetGravity, gravityReorientationSpeed * Time.deltaTime);
+		_gravity = Vector3.Lerp(_gravity, targetGravity, groundedReorientationSpeed * Time.deltaTime);
 	}
 
 	private void HoverOverTrack() {
@@ -120,12 +122,12 @@ public class VehicleController : MonoBehaviour {
 			if (Physics.Raycast(hoverPoints[hoverPointIndex].position, _gravity, out trackHit, hoverDistance, trackLayer)) {
 
 				// Accumulates their values
-				hoverNormal += trackHit.SmoothedNormal();
+				float proportionalDistance = 1f - trackHit.distance / hoverDistance;
+				hoverNormal += trackHit.SmoothedNormal() * proportionalDistance;
 				rayHitCount++;
 
 				// Adds force to the vehicle to separate it from the track
 				// The amount of force added is proportional to how close the vehicle is to the ground
-				float proportionalDistance = 1f - trackHit.distance / hoverDistance;
 				_rigidbody.AddForceAtPosition(trackHit.normal * proportionalDistance * hoverForce / hoverPoints.Length, hoverPoints[hoverPointIndex].position);
 			}
 		}
@@ -160,7 +162,8 @@ public class VehicleController : MonoBehaviour {
 		// Orientates the vehicle to match the normal
 		Vector3 projectedForward = Vector3.ProjectOnPlane(_transform.forward, hoverNormal);
 		Quaternion targetRotation = Quaternion.LookRotation(projectedForward, hoverNormal);
-		_transform.rotation = Quaternion.Lerp(_transform.rotation, targetRotation, gravityReorientationSpeed * Time.deltaTime);
+		float speed = Grounded ? groundedReorientationSpeed : airborneReorientationSpeed;
+		_transform.rotation = Quaternion.Lerp(_transform.rotation, targetRotation, speed * Time.deltaTime);
 	}
 
 	private void TurnVehicle() {
