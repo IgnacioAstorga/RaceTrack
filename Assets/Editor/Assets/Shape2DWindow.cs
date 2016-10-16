@@ -983,11 +983,13 @@ public class Shape2DWindow : EditorWindow {
 	private void SymmetryHorizontal() {
 		DuplicateSelectedPoints();
 		MirrorSelectionHorizontal(true);
+		ReverseSelectedLines();
 	}
 
 	private void SymmetryVertical() {
 		DuplicateSelectedPoints();
 		MirrorSelectionVertical(true);
+		ReverseSelectedLines();
 	}
 
 	private void DuplicateSelectedPoints() {
