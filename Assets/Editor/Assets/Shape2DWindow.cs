@@ -1162,9 +1162,9 @@ public class Shape2DWindow : EditorWindow {
 			for (int i = 0; i < lineOrigins.Count; i++)
 				if (lineOrigins[i] > index)
 					lineOrigins[i] -= 1;
-			for (int i = 0; i < lineOrigins.Count; i++)
-				if (lineOrigins[i] > index)
-					lineOrigins[i] -= 1;
+			for (int i = 0; i < lineDestinations.Count; i++)
+				if (lineDestinations[i] > index)
+					lineDestinations[i] -= 1;
 
 			foreach (int origin in lineOrigins) {
 				_shape2D.AddPoint(point);
