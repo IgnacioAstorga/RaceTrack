@@ -4,6 +4,8 @@
 public class VehicleController : MonoBehaviour {
 
 	public bool Grounded { get; private set; }
+	public float RampFactor { get; private set; }
+	public float CurrentTilt { get; private set; }
 
 	public Transform model;
 
@@ -133,6 +135,7 @@ public class VehicleController : MonoBehaviour {
 			// If none of the ray hits, uses the gravity direction as normal
 			hoverNormal = -_gravity;
 			Grounded = false;
+			RampFactor = 0;
 		}
 		else {
 
@@ -141,8 +144,17 @@ public class VehicleController : MonoBehaviour {
 			Grounded = true;
 
 			// In order to smooth the movement, projects the velocity into the track's curvature
+			Vector3 previousVelocity = _rigidbody.velocity;
 			Vector3 projectedVelocity = Vector3.ProjectOnPlane(_rigidbody.velocity, hoverNormal);
 			_rigidbody.velocity = projectedVelocity.normalized * _rigidbody.velocity.magnitude;
+
+			// Calculates the ramp factor using the angle between both velocities
+			float deltaAngle = Vector3.Angle(previousVelocity, projectedVelocity);
+			if (deltaAngle > 0.01) {
+				float angleSign = Mathf.Sign(previousVelocity.x * projectedVelocity.y - previousVelocity.y * projectedVelocity.x);
+				deltaAngle /= angleSign * Time.deltaTime;
+			}
+			RampFactor = deltaAngle;
 		}
 
 		// Orientates the vehicle to match the normal
@@ -155,7 +167,6 @@ public class VehicleController : MonoBehaviour {
 
 		// Rotates the forward direction using the turn rate
 		float amountTurned = turnRate * _horizontalInput * Time.deltaTime;
-		amountTurned *= GetVelocityFactor();
 		Quaternion turnRotation = Quaternion.AngleAxis(amountTurned, _transform.up);
 		_transform.rotation = turnRotation * _transform.rotation;
 		_rigidbody.velocity = turnRotation * _rigidbody.velocity;
@@ -164,10 +175,9 @@ public class VehicleController : MonoBehaviour {
 	private void TiltModel() {
 
 		// Tilts the model, creating a better sensation of speed
-		float weightedTiltSpeed = tiltSpeed;
-		weightedTiltSpeed *= GetVelocityFactor();
-		Quaternion tiltRotation = Quaternion.AngleAxis(-tiltAngle * _horizontalInput, Vector3.forward);
-		model.localRotation = Quaternion.Lerp(model.localRotation, tiltRotation, weightedTiltSpeed);
+		CurrentTilt = Mathf.Lerp(CurrentTilt, -tiltAngle * _horizontalInput, tiltSpeed * Time.deltaTime);
+		Quaternion tiltRotation = Quaternion.AngleAxis(CurrentTilt, Vector3.forward);
+		model.localRotation = Quaternion.Lerp(model.localRotation, tiltRotation, tiltSpeed);
 	}
 
 	private void Accelerate() {
@@ -181,9 +191,5 @@ public class VehicleController : MonoBehaviour {
 		// Applies drag to the velocity
 		float drag = Acceleration.GetDragFromAcceleration(acceleration, maxSpeed);
 		_rigidbody.velocity *= Mathf.Clamp01(1f - (1f + _brakeInput * brakeStrength) * drag * Time.fixedDeltaTime);
-	}
-
-	private float GetVelocityFactor() {
-		return 1f - _rigidbody.velocity.magnitude / maxSpeed;
 	}
 }
