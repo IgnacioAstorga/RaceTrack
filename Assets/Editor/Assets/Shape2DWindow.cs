@@ -1133,8 +1133,12 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	private void BreakSelectedPoints() {
-		foreach (int index in _selection)
-			BreakPoint(index);
+		int[] selectionCopy = new int[_selection.Count];
+		_selection.CopyTo(selectionCopy);
+		_selection.Clear();
+		Array.Sort(selectionCopy);
+		for (int i = selectionCopy.Length - 1; i >= 0; i--)
+			BreakPoint(selectionCopy[i]);
 	}
 
 	private void BreakPoint(object pointIndex) {
@@ -1156,8 +1160,8 @@ public class Shape2DWindow : EditorWindow {
 			
 			Vector2 point = _shape2D.points[index];
 			float u = _shape2D.us[index];
+			_selection.Remove(index);
 			DeletePoint(index);
-			_selection.Clear();
 
 			for (int i = 0; i < lineOrigins.Count; i++)
 				if (lineOrigins[i] > index)
