@@ -20,6 +20,8 @@ public class Shape2DWindow : EditorWindow {
 
 	private float _pointRadius = 5f;
 	private float _lineWidth = 5f;
+	private float _arrowAngle = 30f;
+	private float _arrowLength = 0.2f;
 	private float _normalLength = 0.35f;
 	private float _normalHandleSize = 0.75f;
 	private float _selectionAreaExpansionDistance = 5f;
@@ -510,7 +512,7 @@ public class Shape2DWindow : EditorWindow {
 
 		// Draws the lines
 		for (int i = 0; i < _shape2D.lines.Length - 1; i += 2)
-			DrawLine(PointToScreen(_shape2D.points[_shape2D.lines[i]]), PointToScreen(_shape2D.points[_shape2D.lines[i + 1]]), _lineWidth, Color.blue);
+			DrawLineWithArrow(PointToScreen(_shape2D.points[_shape2D.lines[i]]), PointToScreen(_shape2D.points[_shape2D.lines[i + 1]]), _lineWidth, Color.blue, _arrowAngle, _arrowLength);
 
 		// Draws the points
 		for (int i = 0; i < _shape2D.points.Length; i++) {
@@ -593,7 +595,17 @@ public class Shape2DWindow : EditorWindow {
 		Handles.DrawSolidRectangleWithOutline(selectionRect, faceColor, outlineColor);
 	}
 
-	private void DrawLine(Vector2 point1, Vector2 point2,float width, Color color) {
+	private void DrawLineWithArrow(Vector2 point1, Vector2 point2, float width, Color color, float arrowAngle, float arrowWidth) {
+		DrawLine(point1, point2, width, color);
+
+		Vector2 direction = (point2 - point1).normalized * _fixedScale * arrowWidth;
+		Vector3 arrowSegmentA = new Vector3(point2.x, point2.y, 0) - Quaternion.Euler(0, 0, arrowAngle) * direction;
+		Vector3 arrowSegmentB = new Vector3(point2.x, point2.y, 0) - Quaternion.Euler(0, 0, -arrowAngle) * direction;
+		Handles.DrawAAPolyLine(width, point2, arrowSegmentA);
+		Handles.DrawAAPolyLine(width, point2, arrowSegmentB);
+	}
+
+	private void DrawLine(Vector2 point1, Vector2 point2, float width, Color color) {
 		Handles.color = color;
 		Handles.DrawAAPolyLine(width, point1, point2);
 	}
