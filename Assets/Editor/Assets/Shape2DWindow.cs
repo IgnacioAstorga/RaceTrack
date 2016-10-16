@@ -903,10 +903,13 @@ public class Shape2DWindow : EditorWindow {
 			for (int line = 0; line < _shape2D.lines.Length; line += 2) {
 				for (int i = 0; i < indices.Length; i++) {
 					for (int j = i + 1; j < indices.Length; j++) {
-						if ((_shape2D.lines[line] == indices[i] && _shape2D.lines[line + 1] == indices[j]) ||
-							(_shape2D.lines[line] == indices[j] && _shape2D.lines[line + 1] == indices[i])) {
+						if (_shape2D.lines[line] == indices[i] && _shape2D.lines[line + 1] == indices[j]) {
 							lineList.Add(i);
 							lineList.Add(j);
+						}
+						if (_shape2D.lines[line] == indices[j] && _shape2D.lines[line + 1] == indices[i]) {
+							lineList.Add(j);
+							lineList.Add(i);
 						}
 					}
 				}
