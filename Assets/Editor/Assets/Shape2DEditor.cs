@@ -52,12 +52,12 @@ public class Shape2DEditor : Editor {
 		return true;
 	}
 
-	public static Mesh MeshFromShape(Shape2D shape, int length) {
+	public static Mesh MeshFromShape(Shape2D shape, float length) {
 		// Creates the vertices
 		Vector3[] meshVertices = new Vector3[2 * shape.points.Length];
 		for (int i = 0; i < shape.points.Length; i++) {
-			meshVertices[i] = new Vector3(shape.points[i].x, shape.points[i].y, 0);
-			meshVertices[i + shape.points.Length] = new Vector3(shape.points[i].x, shape.points[i].y, length);
+			meshVertices[i] = new Vector3(shape.points[i].x, shape.points[i].y, -length / 2f);
+			meshVertices[i + shape.points.Length] = new Vector3(shape.points[i].x, shape.points[i].y, length / 2f);
 		}
 
 		// Creates the normals

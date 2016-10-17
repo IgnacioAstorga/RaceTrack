@@ -19,6 +19,7 @@ public class Shape2DWindow : EditorWindow {
 	private Texture _previewTexture = null;
 	private bool _autoRecalculateNormals = true;
 	private float _weldDistance = 0.05f;
+	private float _shapePreviewExtrude = 1f;
 
 	private float _pointRadius = 5f;
 	private float _lineWidth = 5f;
@@ -462,7 +463,8 @@ public class Shape2DWindow : EditorWindow {
 		if (_preview == null)
 			_preview = new ScenePreview();
 		Rect inputArea = previewArea;
-		inputArea.height -= _resizeWidth;
+		inputArea.y += 20;
+		inputArea.height -= _resizeWidth + 20;
 		_preview.ReadInput(inputArea);
 
 		if (Event.current.type == EventType.repaint) {
@@ -472,11 +474,14 @@ public class Shape2DWindow : EditorWindow {
 
 			_previewMaterial.mainTexture = _previewTexture;
 			_preview.ClearModels();
-			_preview.AddModel(Shape2DEditor.MeshFromShape(_shape2D, 1), Matrix4x4.identity, _previewMaterial);
+			_preview.AddModel(Shape2DEditor.MeshFromShape(_shape2D, _shapePreviewExtrude), Matrix4x4.identity, _previewMaterial);
 
 			Texture render = _preview.GetSceneTexture(previewArea, GUI.skin.textArea);
 			GUI.DrawTexture(previewArea, render, ScaleMode.StretchToFill, false);
 		}
+
+		_shapePreviewExtrude = EditorGUILayout.Slider(_shapePreviewExtrude, 0, 10);
+
 		EndArea();
 
 		EndArea();
