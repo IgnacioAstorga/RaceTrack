@@ -18,6 +18,7 @@ public class Shape2DWindow : EditorWindow {
 	private bool _showingUs = false;
 	private Texture _previewTexture = null;
 	private bool _autoRecalculateNormals = true;
+	private float _weldDistance = 0.05f;
 
 	private float _pointRadius = 5f;
 	private float _lineWidth = 5f;
@@ -35,8 +36,7 @@ public class Shape2DWindow : EditorWindow {
 	private float _pointsListWidth = 180f;
 	private float _textureSelectorHeight = 70f;
 	private float _previewTextureSize = -1f;
-	private float _optionsPanelHeight = 20f;
-	private float _optionsPanelWidth = 150f;
+	private float _optionsPanelHeight = 22.5f;
 	private float _selectedPanelHeight = 120f;
 	private float _selectedPanelWidth = 150f;
 
@@ -193,15 +193,25 @@ public class Shape2DWindow : EditorWindow {
 			}
 			menu.AddSeparator("");
 			if (HasSelection) {
+				menu.AddItem(new GUIContent("Break selected points _b"), false, BreakSelectedPoints);
+			}
+			else {
+				menu.AddDisabledItem(new GUIContent("Break selected points _b"));
+			}
+			menu.AddSeparator("");
+			if (HasSelection) {
 				menu.AddItem(new GUIContent("Shrink selected points _k"), false, ShrinkSelectedPoints);
 				menu.AddItem(new GUIContent("Merge selected points _m"), false, MergeSelectedPoints);
-				menu.AddItem(new GUIContent("Break selected points _b"), false, BreakSelectedPoints);
+				menu.AddSeparator("");
+				menu.AddItem(new GUIContent("Weld selected points _w"), false, WeldSelectedPoints);
 			}
 			else {
 				menu.AddDisabledItem(new GUIContent("Shrink selected points _k"));
 				menu.AddDisabledItem(new GUIContent("Merge selected points _m"));
-				menu.AddDisabledItem(new GUIContent("Break selected points _b"));
+				menu.AddSeparator("");
+				menu.AddDisabledItem(new GUIContent("Weld selected points _w"));
 			}
+			menu.AddItem(new GUIContent("Weld all points #w"), false, WeldAllPoints);
 			menu.ShowAsContext();
 		}
 
@@ -337,8 +347,11 @@ public class Shape2DWindow : EditorWindow {
 					menu.AddItem(new GUIContent("Break point"), false, BreakPoint, index);
 					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Break selected points"), false, BreakSelectedPoints);
+						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Shrink selected points into this one"), false, ShrinkPoints, point);
 						menu.AddItem(new GUIContent("Merge selected points into this one"), false, MergePoints, index);
+						menu.AddSeparator("");
+						menu.AddItem(new GUIContent("Weld selected points"), false, WeldSelectedPoints);
 						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Copy selected points"), false, CopySelectedPoints);
 						menu.AddItem(new GUIContent("Cut selected points"), false, CutSelectedPoints);
@@ -702,8 +715,11 @@ public class Shape2DWindow : EditorWindow {
 					menu.AddItem(new GUIContent("Break point"), false, BreakPoint, index);
 					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Break selected points"), false, BreakSelectedPoints);
+						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Shrink selected points into this one"), false, ShrinkPoints, point);
 						menu.AddItem(new GUIContent("Merge selected points into this one"), false, MergePoints, index);
+						menu.AddSeparator("");
+						menu.AddItem(new GUIContent("Weld selected points"), false, WeldSelectedPoints);
 						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Copy selected points"), false, CopySelectedPoints);
 						menu.AddItem(new GUIContent("Cut selected points"), false, CutSelectedPoints);
@@ -844,6 +860,62 @@ public class Shape2DWindow : EditorWindow {
 		Array.Sort(selectionCopy);
 		for (int i = selectionCopy.Length - 1; i >= 0; i--)
 			_shape2D.DeletePoint(selectionCopy[i]);
+	}
+
+	private void WeldAllPoints() {
+		int[] indices = new int[_shape2D.points.Length];
+		for (int i = 0; i < indices.Length; i++)
+			indices[i] = i;
+		WeldPoints(indices, _weldDistance);
+	}
+
+	private void WeldSelectedPoints() {
+		WeldPoints(_selection, _weldDistance);
+	}
+
+	private void WeldPoints(IEnumerable<int> pointIndices, float distance) {
+
+		// Groups the points by distance
+		HashSet<int> remainingPoints = new HashSet<int>(pointIndices);
+		List<List<int>> weldings = new List<List<int>>();
+		while (remainingPoints.Count > 0) {
+
+			// For each point, find the close ones
+			List<int> nearPoints = new List<int>();
+			foreach (int index in remainingPoints) {
+				if (nearPoints.Count == 0)
+					nearPoints.Add(index);
+				else if (Vector2.Distance(_shape2D.points[nearPoints[0]], _shape2D.points[index]) <= distance)
+					nearPoints.Add(index);
+			}
+
+			// Removes the points from the remaining points set
+			foreach (int index in nearPoints) {
+				remainingPoints.Remove(index);
+			}
+			weldings.Add(nearPoints);
+		}
+
+		// For each welding...
+		HashSet<int> finalSelection = new HashSet<int>();
+		for (int weldingIndex = 0; weldingIndex < weldings.Count; weldingIndex++) {
+
+			// Merges the points
+			_selection = new HashSet<int>(weldings[weldingIndex]);
+			MergeSelectedPoints();
+			finalSelection.UnionWith(_selection);
+
+			// Modifies the index of the other weldings
+			foreach (int pointIndex in weldings[weldingIndex]) {
+				for (int nextWeldingIndex = weldingIndex + 1; nextWeldingIndex < weldings.Count; nextWeldingIndex++) {
+					for (int i = 0; i < weldings[nextWeldingIndex].Count; i++) {
+						if (weldings[nextWeldingIndex][i] >= pointIndex)
+							weldings[nextWeldingIndex][i] -= 1;
+					}
+				}
+			}
+		}
+		_selection = finalSelection;
 	}
 
 	private void CreatePoint(object position) {
@@ -1434,7 +1506,7 @@ public class Shape2DWindow : EditorWindow {
 		Rect selectedFieldsArea = new Rect();
 		if (HasSelection)
 			selectedFieldsArea = new Rect(area.width - _selectedPanelWidth, area.height - _selectedPanelHeight, _selectedPanelWidth, _selectedPanelHeight);
-		Rect optionsPanelArea = new Rect(area.width - _optionsPanelWidth, 0, _optionsPanelWidth, _optionsPanelHeight);
+		Rect optionsPanelArea = new Rect(0, 0, area.width, _optionsPanelHeight);
 		switch (current.GetTypeForControl(dragID)) {
 			case EventType.ContextClick:
 				if (area.Contains(current.mousePosition) && !selectedFieldsArea.Contains(current.mousePosition) && !optionsPanelArea.Contains(current.mousePosition)) {
@@ -1468,6 +1540,8 @@ public class Shape2DWindow : EditorWindow {
 					if (_selection.Count > 1) {
 						menu.AddItem(new GUIContent("Shrink selected points"), false, ShrinkSelectedPoints);
 						menu.AddItem(new GUIContent("Merge selected points"), false, MergeSelectedPoints);
+						menu.AddSeparator("");
+						menu.AddItem(new GUIContent("Weld selected points"), false, WeldSelectedPoints);
 						menu.AddSeparator("");
 						menu.AddItem(new GUIContent("Copy selected points"), false, CopySelectedPoints);
 						menu.AddItem(new GUIContent("Cut selected points"), false, CutSelectedPoints);
@@ -1595,6 +1669,12 @@ public class Shape2DWindow : EditorWindow {
 				else if (current.isKey && current.keyCode == KeyCode.M && HasSelection) {
 					MergeSelectedPoints();
 				}
+				else if (current.isKey && current.keyCode == KeyCode.W && HasSelection) {
+					WeldSelectedPoints();
+				}
+				else if (current.isKey && current.shift && current.keyCode == KeyCode.W && HasSelection) {
+					WeldAllPoints();
+				}
 				else if (current.isKey && current.keyCode == KeyCode.B && HasSelection) {
 					BreakSelectedPoints();
 				}
@@ -1624,13 +1704,23 @@ public class Shape2DWindow : EditorWindow {
 	}
 
 	private void DrawOptionsPanel() {
-		BeginArea(new Rect(CurrentArea.width - _optionsPanelWidth, 0, _optionsPanelWidth, _optionsPanelHeight), GUI.skin.box);
+		BeginArea(new Rect(0, 0, CurrentArea.width, _optionsPanelHeight), GUI.skin.box);
 		EditorGUILayout.BeginHorizontal();
 		float labelWidth = EditorGUIUtility.labelWidth;
-
+		
 		GUIContent autoNormalsLabel = new GUIContent("Normals Auto");
-		EditorGUIUtility.labelWidth = GUI.skin.toggle.CalcSize(autoNormalsLabel).x;
+		EditorGUIUtility.labelWidth = GUI.skin.label.CalcSize(autoNormalsLabel).x;
 		_autoRecalculateNormals = EditorGUILayout.Toggle(autoNormalsLabel, _autoRecalculateNormals);
+
+		GUIContent weldDistanceLabel = new GUIContent("Weld Distance");
+		EditorGUIUtility.labelWidth = GUI.skin.label.CalcSize(weldDistanceLabel).x;
+		_weldDistance = EditorGUILayout.FloatField(weldDistanceLabel, _weldDistance);
+		
+		if (GUILayout.Button("Weld Selected Points"))
+			WeldSelectedPoints();
+
+		if (GUILayout.Button("Weld All Points"))
+			WeldAllPoints();
 
 		EditorGUIUtility.labelWidth = labelWidth;
 		EditorGUILayout.EndHorizontal();
@@ -1810,5 +1900,41 @@ public class Shape2DWindow : EditorWindow {
 		normal -= PointToScreen(associatedPoint);
 		normal.y *= -1;
 		return normal.normalized;
+	}
+
+	private Vector2 AveragePoint(IEnumerable<int> indices) {
+		Vector2 avg = Vector2.zero;
+		int count = 0;
+		foreach (int index in indices) {
+			avg += _shape2D.points[index];
+			count++;
+		}
+		if (count != 0)
+			avg /= count;
+		return avg;
+	}
+
+	private Vector2 AverageNormal(IEnumerable<int> indices) {
+		Vector2 avg = Vector2.zero;
+		int count = 0;
+		foreach (int index in indices) {
+			avg += _shape2D.normals[index];
+			count++;
+		}
+		if (count != 0)
+			avg /= count;
+		return avg;
+	}
+
+	private float AverageU(IEnumerable<int> indices) {
+		float avg = 0;
+		int count = 0;
+		foreach (int index in indices) {
+			avg += _shape2D.us[index];
+			count++;
+		}
+		if (count != 0)
+			avg /= count;
+		return avg;
 	}
 }
