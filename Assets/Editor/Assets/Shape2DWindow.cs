@@ -17,6 +17,7 @@ public class Shape2DWindow : EditorWindow {
 	private Vector2 _pointListScroll = Vector2.zero;
 	private bool _showingUs = false;
 	private Texture _previewTexture = null;
+	private bool _autoRecalculateNormals = true;
 
 	private float _pointRadius = 5f;
 	private float _lineWidth = 5f;
@@ -34,6 +35,8 @@ public class Shape2DWindow : EditorWindow {
 	private float _pointsListWidth = 180f;
 	private float _textureSelectorHeight = 70f;
 	private float _previewTextureSize = -1f;
+	private float _optionsPanelHeight = 20f;
+	private float _optionsPanelWidth = 150f;
 	private float _selectedPanelHeight = 120f;
 	private float _selectedPanelWidth = 150f;
 
@@ -92,6 +95,9 @@ public class Shape2DWindow : EditorWindow {
 
 			// Draws the main panel
 			DrawMainPanel();
+
+			if (_autoRecalculateNormals)
+				_shape2D.RecalculateAllNormals();
 		}
 
 		Repaint();
@@ -541,6 +547,9 @@ public class Shape2DWindow : EditorWindow {
 		HandleSelectionEvents();
 		HandleMouseEvents(GetCurrentAreaSelectionRect());
 		HandleKeyboardEvents();
+
+		// Draws the options panel
+		DrawOptionsPanel();
 
 		// Draws the selected object information
 		DrawSelected();
@@ -1425,9 +1434,10 @@ public class Shape2DWindow : EditorWindow {
 		Rect selectedFieldsArea = new Rect();
 		if (HasSelection)
 			selectedFieldsArea = new Rect(area.width - _selectedPanelWidth, area.height - _selectedPanelHeight, _selectedPanelWidth, _selectedPanelHeight);
+		Rect optionsPanelArea = new Rect(area.width - _optionsPanelWidth, 0, _optionsPanelWidth, _optionsPanelHeight);
 		switch (current.GetTypeForControl(dragID)) {
 			case EventType.ContextClick:
-				if (area.Contains(current.mousePosition) && !selectedFieldsArea.Contains(current.mousePosition)) {
+				if (area.Contains(current.mousePosition) && !selectedFieldsArea.Contains(current.mousePosition) && !optionsPanelArea.Contains(current.mousePosition)) {
 					GenericMenu menu = new GenericMenu();
 					if (_selection.Count == 1)
 						menu.AddItem(new GUIContent("Extrude point"), false, ExtrudePoint, current.mousePosition);
@@ -1478,7 +1488,7 @@ public class Shape2DWindow : EditorWindow {
 				}
 				break;
 			case EventType.MouseDown:
-				if (area.Contains(current.mousePosition) && !selectedFieldsArea.Contains(current.mousePosition) && current.button == 2) {
+				if (area.Contains(current.mousePosition) && !selectedFieldsArea.Contains(current.mousePosition) && !optionsPanelArea.Contains(current.mousePosition) && current.button == 2) {
 					GUIUtility.hotControl = dragID;
 					current.Use();
 					EditorGUIUtility.SetWantsMouseJumping(1);
@@ -1516,7 +1526,7 @@ public class Shape2DWindow : EditorWindow {
 		}
 		switch (current.GetTypeForControl(selectID)) {
 			case EventType.MouseDown:
-				if (area.Contains(current.mousePosition) && !selectedFieldsArea.Contains(current.mousePosition) && current.button == 0) {
+				if (area.Contains(current.mousePosition) && !selectedFieldsArea.Contains(current.mousePosition) && !optionsPanelArea.Contains(current.mousePosition) && current.button == 0) {
 					GUIUtility.hotControl = selectID;
 					current.Use();
 					_selectionStart = current.mousePosition;
@@ -1611,6 +1621,20 @@ public class Shape2DWindow : EditorWindow {
 				}
 				break;
 		}
+	}
+
+	private void DrawOptionsPanel() {
+		BeginArea(new Rect(CurrentArea.width - _optionsPanelWidth, 0, _optionsPanelWidth, _optionsPanelHeight), GUI.skin.box);
+		EditorGUILayout.BeginHorizontal();
+		float labelWidth = EditorGUIUtility.labelWidth;
+
+		GUIContent autoNormalsLabel = new GUIContent("Normals Auto");
+		EditorGUIUtility.labelWidth = GUI.skin.toggle.CalcSize(autoNormalsLabel).x;
+		_autoRecalculateNormals = EditorGUILayout.Toggle(autoNormalsLabel, _autoRecalculateNormals);
+
+		EditorGUIUtility.labelWidth = labelWidth;
+		EditorGUILayout.EndHorizontal();
+		EndArea();
 	}
 
 	private void DrawSelected() {
