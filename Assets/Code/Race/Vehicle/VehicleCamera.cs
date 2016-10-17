@@ -43,8 +43,7 @@ public class VehicleCamera : MonoBehaviour {
 
 		// Orientates the camera to the vehicles's forward direction
 		Quaternion look = Quaternion.LookRotation(_vehicleTransform.forward, _vehicleTransform.up);
-		look = Quaternion.Slerp(_transform.rotation, look, cameraRotationSpeed * Time.deltaTime);
-		_transform.rotation = look;
+		_transform.rotation = Quaternion.Slerp(_transform.rotation, look, cameraRotationSpeed * Time.deltaTime);
 
 		// Rotates the camera arround the vehicle on ramps
 		_rampRotation = Mathf.MoveTowards(_rampRotation, _vehicleController.RampFactor * -rampMagnitude, rampRotationSpeed * Time.deltaTime);

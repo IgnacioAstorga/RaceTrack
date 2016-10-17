@@ -21,6 +21,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 	public bool useCollider = true;
 	public Shape2D colliderShape;
 	public int resolution = 5;
+	public float textureStretch = 1f;
 	public InterpolationMethod interpolationMethod = InterpolationMethod.Bezier;
 	public bool recalculateNormals = true;
 	public bool closeShape = false;
@@ -265,7 +266,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 
 				// Calculates the interpolated values
 				float lerpFactor = controlPointIndex + (float)resolutionPass / resolution;
-				float interpolatedV = lerpFactor / (_controlPoints.Length - 1);
+				float interpolatedV = lerpFactor * resolution / textureStretch;
 
 				// Caches some values
 				int meshUVBaseIndex = (controlPointIndex * resolution + resolutionPass) * shape.us.Length;

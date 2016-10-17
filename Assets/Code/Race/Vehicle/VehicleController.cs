@@ -163,7 +163,7 @@ public class VehicleController : MonoBehaviour {
 		Vector3 projectedForward = Vector3.ProjectOnPlane(_transform.forward, hoverNormal);
 		Quaternion targetRotation = Quaternion.LookRotation(projectedForward, hoverNormal);
 		float speed = Grounded ? groundedReorientationSpeed : airborneReorientationSpeed;
-		_transform.rotation = Quaternion.Lerp(_transform.rotation, targetRotation, speed * Time.deltaTime);
+		_transform.rotation = Quaternion.Slerp(_transform.rotation, targetRotation, speed * Time.deltaTime);
 	}
 
 	private void TurnVehicle() {
