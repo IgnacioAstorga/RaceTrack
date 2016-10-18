@@ -372,7 +372,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		if (coverTrianglesIndices.Length == 0)
 			throw new InvalidOperationException("The cover shape is not closed!");
 
-		// Finally, calculates the normals and bound
+		// Finally, calculates the normals and bounds
 		mesh.RecalculateNormals();
 		mesh.RecalculateBounds();
 
@@ -397,16 +397,7 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		Shape2DExtrudeControlPoint startControlPoint = _controlPoints[Mathf.FloorToInt(interpolationFactor)];
 		Shape2DExtrudeControlPoint endControlPoint = _controlPoints[Mathf.CeilToInt(interpolationFactor)];
 		float lerpFactor = interpolationFactor - Mathf.Floor(interpolationFactor);
-		switch (interpolationMethod) {
-			case InterpolationMethod.Linear:
-			case InterpolationMethod.Bezier:
-				return Quaternion.Lerp(startControlPoint.GetRotation(), endControlPoint.GetRotation(), lerpFactor);
-			//case InterpolationMethod.Bezier:
-				//Vector3 upDirection = Vector3.Lerp(startControlPoint.GetUpDirection(), endControlPoint.GetUpDirection(), lerpFactor);
-				//return BezierCurve.BezierOrientation(startControlPoint.GetPosition(), startControlPoint.GetForwardHandlePosition(), endControlPoint.GetPosition(), endControlPoint.GetBackwardHandlePosition(), lerpFactor, upDirection);
-			default:
-				throw new InvalidOperationException("The current interpolation method is not supported: " + interpolationMethod);
-		}
+		return Quaternion.Lerp(startControlPoint.GetRotation(), endControlPoint.GetRotation(), lerpFactor);
 	}
 
 	public Vector3 InterpolateScale(float interpolationFactor) {
