@@ -128,7 +128,7 @@ public class VehicleController : MonoBehaviour {
 
 				// Adds force to the vehicle to separate it from the track
 				// The amount of force added is proportional to how close the vehicle is to the ground
-				_rigidbody.AddForceAtPosition(trackHit.normal * proportionalDistance * hoverForce / hoverPoints.Length, hoverPoints[hoverPointIndex].position);
+				_rigidbody.AddForceAtPosition(trackHit.normal * proportionalDistance * hoverForce / hoverPoints.Length, hoverPoints[hoverPointIndex].position, ForceMode.Acceleration);
 			}
 		}
 
