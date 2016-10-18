@@ -258,6 +258,10 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 		// Creates the UVs
 		Vector2[] meshUVs = new Vector2[(resolution * (_controlPoints.Length - 1) + 1) * shape.us.Length];
 
+		// Defines some variables to keep track of the distance
+		Vector3 previousPosition = _controlPoints[0].GetPosition();
+		float accumulatedDistance = 0;
+
 		// For each control point...
 		for (int controlPointIndex = 0; controlPointIndex < _controlPoints.Length; controlPointIndex++) {
 
@@ -266,7 +270,10 @@ public class Shape2DExtrudeSegment : MonoBehaviour {
 
 				// Calculates the interpolated values
 				float lerpFactor = controlPointIndex + (float)resolutionPass / resolution;
-				float interpolatedV = lerpFactor * resolution / textureStretch;
+				Vector3 interpolatedPosition = InterpolatePosition(lerpFactor);
+				accumulatedDistance += (interpolatedPosition - previousPosition).magnitude;
+				float interpolatedV = accumulatedDistance / textureStretch;
+				previousPosition = interpolatedPosition;
 
 				// Caches some values
 				int meshUVBaseIndex = (controlPointIndex * resolution + resolutionPass) * shape.us.Length;
