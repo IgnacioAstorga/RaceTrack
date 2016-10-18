@@ -10,6 +10,8 @@ public class VehicleCamera : MonoBehaviour {
 	public float rampRotationSpeed = 25f;
 	public float tiltFactor = 0.5f;
 	public float tiltRotationSpeed = 5f;
+	public float minFOV = 90f;
+	public float maxFOV = 120f;
 
 	private Transform _vehicleTransform;
 	private VehicleController _vehicleController;
@@ -54,5 +56,9 @@ public class VehicleCamera : MonoBehaviour {
 		float targetTiltRotation = _vehicleController.CurrentTilt * tiltFactor;
 		_tiltRotation = Mathf.Lerp(_tiltRotation, targetTiltRotation, tiltRotationSpeed * Time.deltaTime);
 		_cameraTransfrom.rotation = Quaternion.AngleAxis(_tiltRotation, _cameraTransfrom.forward) * _cameraTransfrom.rotation;
+
+		// Adjusts the camera FOV
+		float velocityFactor = _vehicleController.GetVelocityFactor();
+		_cameraTransfrom.GetComponent<Camera>().fieldOfView = Mathf.Lerp(minFOV, maxFOV, velocityFactor);
 	}
 }

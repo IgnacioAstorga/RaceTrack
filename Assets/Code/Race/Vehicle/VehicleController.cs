@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
 public class VehicleController : MonoBehaviour {
@@ -108,6 +109,10 @@ public class VehicleController : MonoBehaviour {
 		_gravity = Vector3.Lerp(_gravity, targetGravity, groundedReorientationSpeed * Time.deltaTime);
 	}
 
+	public float GetVelocityFactor() {
+		return _rigidbody.velocity.magnitude / maxSpeed;
+	}
+
 	private void HoverOverTrack() {
 
 		// Checks the average normal of the hover points
@@ -171,8 +176,8 @@ public class VehicleController : MonoBehaviour {
 		// Rotates the forward direction using the turn rate
 		float amountTurned = turnRate * _horizontalInput * Time.deltaTime;
 		Quaternion turnRotation = Quaternion.AngleAxis(amountTurned, _transform.up);
-		_transform.rotation = turnRotation * _transform.rotation;
 		_rigidbody.velocity = turnRotation * _rigidbody.velocity;
+		_transform.rotation = Quaternion.Slerp(_transform.rotation, Quaternion.LookRotation(_rigidbody.velocity, _transform.up), tiltSpeed);
 	}
 
 	private void TiltModel() {
